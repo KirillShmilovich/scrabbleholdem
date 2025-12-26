@@ -564,16 +564,24 @@ function revealResults(lobby) {
   // Store round in history with full details
   lobby.roundHistory.push({
     roundNumber: lobby.roundNumber,
-    results: results.map(r => ({
-      visibleId: r.visibleId,
-      name: r.name,
-      word: r.word || '—',
-      score: r.score || 0,
-      place: r.place,
-      pointsEarned: r.pointsEarned || 0,
-      isInvalid: r.isInvalid,
-      noSubmission: r.noSubmission,
-    })),
+    results: results.map(r => {
+      // Get player's dice letters from their submission
+      const submission = lobby.playerSubmissions.get(r.visibleId);
+      const player = lobby.players.get(r.visibleId);
+      const playerLetters = submission?.playerLetters || player?.dice?.map(d => d.letter).join('') || '';
+      
+      return {
+        visibleId: r.visibleId,
+        name: r.name,
+        word: r.word || '—',
+        score: r.score || 0,
+        place: r.place,
+        pointsEarned: r.pointsEarned || 0,
+        isInvalid: r.isInvalid,
+        noSubmission: r.noSubmission,
+        playerLetters, // Include the player's dice letters
+      };
+    }),
     standings: standingsSnapshot, // Running totals after this round
     communityLetters: lobby.communityDice.map(d => d.letter).join(''),
     modifier: lobby.modifier?.name,
@@ -691,18 +699,15 @@ io.on('connection', (socket) => {
       return;
     }
     
-    if (lobby.status !== 'waiting') {
-      socket.emit('lobby:error', { message: 'Game already in progress' });
-      return;
-    }
-    
     let visibleId = existingId;
     let player;
+    let isReturningPlayer = false;
     
-    // Check if returning player
+    // Check if returning player FIRST (before blocking new joins)
     if (existingId && lobby.players.has(existingId)) {
       player = lobby.players.get(existingId);
-      console.log(`Player returning to lobby ${code}: ${player.name}`);
+      isReturningPlayer = true;
+      console.log(`Player returning to lobby ${code}: ${player.name} (game status: ${lobby.status})`);
       
       // Clear any pending removal timeout
       if (player.removeTimeout) {
@@ -719,7 +724,12 @@ io.on('connection', (socket) => {
       // Clear disconnected timestamp
       player.disconnectedAt = null;
     } else {
-      // New player
+      // New player - check if game is in progress
+      if (lobby.status !== 'waiting') {
+        socket.emit('lobby:error', { message: 'Game already in progress. You cannot join mid-game.' });
+        return;
+      }
+      
       visibleId = generatePlayerId();
       player = {
         visibleId,
@@ -744,12 +754,23 @@ io.on('connection', (socket) => {
       console.log(`Lobby ${lobby.code} deletion cancelled - player joined`);
     }
     
-    // Send state to joining player
-    socket.emit('lobby:joined', {
-      lobbyCode: lobby.code,
-      visibleId,
-      state: getPlayerState(lobby, visibleId),
-    });
+    // Send appropriate state based on game status
+    if (isReturningPlayer && lobby.status === 'playing') {
+      // Player returning mid-game - send them directly to game screen
+      socket.emit('lobby:rejoined', {
+        lobbyCode: lobby.code,
+        visibleId,
+        state: getPlayerState(lobby, visibleId),
+        gameInProgress: true,
+      });
+    } else {
+      // Normal lobby join
+      socket.emit('lobby:joined', {
+        lobbyCode: lobby.code,
+        visibleId,
+        state: getPlayerState(lobby, visibleId),
+      });
+    }
     
     // Notify all players of updated player list
     broadcastPlayerList(lobby);
@@ -862,11 +883,15 @@ io.on('connection', (socket) => {
     // Check if this is the first submission (before adding to map)
     const isFirstSubmission = lobby.playerSubmissions.size === 0;
     
+    // Store player's dice letters for round history display
+    const playerLetters = player.dice.map(d => d.letter).join('');
+    
     lobby.playerSubmissions.set(visibleId, {
       word: data.word,
       score: data.score,
       breakdown: data.breakdown,
       isValid: data.isValid,
+      playerLetters, // Store which letters the player had
       timestamp: Date.now(),
     });
     

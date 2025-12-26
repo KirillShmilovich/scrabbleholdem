@@ -1309,6 +1309,18 @@
       text-transform: none;
     }
     
+    .rh-player-letters {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--wood-light);
+      opacity: 0.6;
+      letter-spacing: 0.05em;
+      padding: 2px 4px;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 4px;
+      margin-left: auto;
+    }
+    
     .rh-scores {
       display: flex;
       align-items: center;
@@ -2484,12 +2496,16 @@
           // Truncate name if needed
           const displayName = r.name.length > 10 ? r.name.substring(0, 9) + '…' : r.name;
           
+          // Show player's hand letters (what they had to work with)
+          const playerLettersDisplay = r.playerLetters ? `<span class="rh-player-letters" title="Player's hand">${r.playerLetters}</span>` : '';
+          
           return `
             <div class="round-history-row ${placeClass}">
               <div class="rh-player-info">
                 <span class="rh-place">${placeEmoji}</span>
                 <span class="rh-name" title="${r.name}">${displayName}</span>
                 <span class="rh-word ${wordClass}">${wordDisplay}</span>
+                ${playerLettersDisplay}
               </div>
               <div class="rh-scores">
                 <span class="rh-word-score">${r.score}</span>
@@ -2607,6 +2623,27 @@
         showScreen('waiting');
       });
       
+      // Returning player rejoins mid-game
+      socket.on('lobby:rejoined', (data) => {
+        saveSession(data.lobbyCode, data.visibleId, data.state.player.name);
+        currentState = data.state;
+        currentState.isHost = data.state.player?.isHost || data.state.isHost;
+        
+        if (data.gameInProgress) {
+          // Jump directly into the game
+          updateGameScreen(data.state);
+          hideOverlay();
+          showScreen('game');
+          console.log('Rejoined game in progress');
+        } else {
+          // Normal waiting room
+          settingsRounds = data.state.settings.totalRounds;
+          settingsTimer = data.state.settings.timerDuration;
+          updateWaitingRoom(data.state);
+          showScreen('waiting');
+        }
+      });
+      
       // Lobby error
       socket.on('lobby:error', (data) => {
         let errorText = data.message;
@@ -2691,6 +2728,12 @@
       socket.on('game:timerHalved', (data) => {
         elements.timerDisplay.textContent = formatTime(data.remaining);
         elements.timerDisplay.classList.add('halved');
+        
+        // Remove any existing notice first (prevent stacking)
+        const existingNotice = document.querySelector('.timer-halved-notice');
+        if (existingNotice) {
+          existingNotice.remove();
+        }
         
         // Show notice (compact, at top of screen)
         const notice = document.createElement('div');
