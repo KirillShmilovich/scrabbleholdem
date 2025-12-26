@@ -2557,8 +2557,17 @@
       
       // Lobby error
       socket.on('lobby:error', (data) => {
-        elements.joinError.textContent = data.message;
+        let errorText = data.message;
+        if (data.hint) {
+          errorText += ` (${data.hint})`;
+        }
+        elements.joinError.textContent = errorText;
         elements.joinError.classList.remove('hidden');
+        
+        // If we were trying to auto-rejoin a session that no longer exists, clear it
+        if (session?.lobbyCode && data.message.includes('not found')) {
+          clearSession();
+        }
       });
       
       // Players updated

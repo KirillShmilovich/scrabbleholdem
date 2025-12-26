@@ -589,7 +589,33 @@ function revealResults(lobby) {
 
 // Health check endpoint (keeps Render from sleeping as fast)
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+  res.status(200).json({ 
+    status: 'ok', 
+    uptime: process.uptime(),
+    activeLobbies: lobbies.size,
+    lobbyCodes: Array.from(lobbies.keys()),
+  });
+});
+
+// Debug endpoint to check if a lobby exists
+app.get('/api/lobby/:code', (req, res) => {
+  const code = (req.params.code || '').toUpperCase();
+  const lobby = lobbies.get(code);
+  if (lobby) {
+    res.json({ 
+      exists: true, 
+      code: lobby.code,
+      playerCount: lobby.players.size,
+      status: lobby.status,
+    });
+  } else {
+    res.json({ 
+      exists: false, 
+      code,
+      activeLobbies: lobbies.size,
+      serverUptime: Math.floor(process.uptime()),
+    });
+  }
 });
 
 // Routes
@@ -645,10 +671,15 @@ io.on('connection', (socket) => {
   // Join an existing lobby
   socket.on('lobby:join', (data) => {
     const { code, name, existingId } = data;
-    const lobby = lobbies.get(code?.toUpperCase());
+    const upperCode = code?.toUpperCase();
+    const lobby = lobbies.get(upperCode);
     
     if (!lobby) {
-      socket.emit('lobby:error', { message: 'Lobby not found' });
+      console.log(`Lobby join failed: ${upperCode} not found. Active lobbies: ${Array.from(lobbies.keys()).join(', ') || 'none'}`);
+      socket.emit('lobby:error', { 
+        message: `Lobby "${upperCode}" not found. The host may need to create a new lobby.`,
+        hint: lobbies.size === 0 ? 'No active lobbies on server - it may have restarted.' : null,
+      });
       return;
     }
     
@@ -978,11 +1009,15 @@ function getLocalIP() {
 }
 
 const PORT = process.env.PORT || 3000;
+const serverStartTime = new Date();
+
 server.listen(PORT, '0.0.0.0', () => {
   const localIP = getLocalIP();
   
   console.log('\n🎲 Scrabble Hold\'em Server Started!\n');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`🎮 Play:     http://${localIP}:${PORT}`);
+  console.log(`⏰ Started:  ${serverStartTime.toISOString()}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  console.log('Note: Lobbies are stored in memory. Server restart = lobbies lost.\n');
 });
