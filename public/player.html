@@ -1389,9 +1389,61 @@
       font-size: 0.85rem;
       z-index: 100;
     }
+    
+    .connecting-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--felt-dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99;
+    }
+    
+    .connecting-overlay.hidden {
+      display: none;
+    }
+    
+    .connecting-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(212, 175, 55, 0.3);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: var(--space-lg);
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .connecting-text {
+      color: var(--gold);
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    .connecting-subtext {
+      color: var(--wood-light);
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-top: var(--space-sm);
+    }
   </style>
 </head>
 <body>
+  <!-- Connecting Overlay (shown on initial load) -->
+  <div class="connecting-overlay" id="connectingOverlay">
+    <div class="connecting-spinner"></div>
+    <div class="connecting-text">Connecting to server...</div>
+    <div class="connecting-subtext" id="connectingSubtext">This may take a moment</div>
+  </div>
+  
   <!-- Reconnecting Banner -->
   <div class="reconnecting-banner hidden" id="reconnectingBanner">
     Reconnecting...
@@ -1707,6 +1759,8 @@
       overlayText: document.getElementById('overlayText'),
       overlaySubtext: document.getElementById('overlaySubtext'),
       reconnectingBanner: document.getElementById('reconnectingBanner'),
+      connectingOverlay: document.getElementById('connectingOverlay'),
+      connectingSubtext: document.getElementById('connectingSubtext'),
     };
     
     // ========================================
@@ -2453,10 +2507,14 @@
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        transports: ['websocket', 'polling'], // Try WebSocket first, fall back to polling
       });
       
       socket.on('connect', () => {
         console.log('Connected to server');
+        elements.connectingOverlay.classList.add('hidden');
         elements.reconnectingBanner.classList.add('hidden');
         
         // Try to rejoin if we have a session
@@ -2472,6 +2530,11 @@
       socket.on('disconnect', () => {
         console.log('Disconnected');
         elements.reconnectingBanner.classList.remove('hidden');
+      });
+      
+      socket.on('connect_error', (error) => {
+        console.log('Connection error:', error.message);
+        elements.connectingSubtext.textContent = 'Server may be waking up...';
       });
       
       // Lobby created

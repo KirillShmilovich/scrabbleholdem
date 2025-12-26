@@ -7,7 +7,17 @@ const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// Configure Socket.IO for production (handles proxies like Render)
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+});
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -577,6 +587,11 @@ function revealResults(lobby) {
     results.map(r => `${r.name}: ${r.word} (${r.score}pts, ${r.pointsEarned} earned)`).join(', '));
 }
 
+// Health check endpoint (keeps Render from sleeping as fast)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -593,6 +608,15 @@ app.get('/board', (req, res) => {
 
 app.get('/player', (req, res) => {
   res.redirect('/play');
+});
+
+// Catch-all: serve index.html for any unknown routes (SPA-style)
+app.get('*', (req, res) => {
+  // Don't catch API routes or socket.io
+  if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Socket.IO connection handling
