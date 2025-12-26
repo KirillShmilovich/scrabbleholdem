@@ -434,13 +434,20 @@ function broadcastToLobby(lobby, event, data) {
 // Get player state for sending to a player
 function getPlayerState(lobby, visibleId) {
   const player = lobby.players.get(visibleId);
-  const players = Array.from(lobby.players.values()).map(p => ({
-    visibleId: p.visibleId,
-    name: p.name,
-    totalPoints: p.totalPoints,
-    isHost: p.isHost,
-    hasSubmitted: lobby.playerSubmissions.has(p.visibleId),
-  }));
+  const players = Array.from(lobby.players.values()).map(p => {
+    const isConnected = lobby.playerSockets.has(p.visibleId);
+    const isReconnecting = !isConnected && p.disconnectedAt && (Date.now() - p.disconnectedAt < 30000);
+    
+    return {
+      visibleId: p.visibleId,
+      name: p.name,
+      totalPoints: p.totalPoints,
+      isHost: p.isHost,
+      hasSubmitted: lobby.playerSubmissions.has(p.visibleId),
+      isConnected,
+      isReconnecting,
+    };
+  });
   
   return {
     lobbyCode: lobby.code,
