@@ -1,0 +1,2682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Scrabble Hold'em</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ========================================
+       PLAYER-ONLY GAME STYLES
+       ======================================== */
+    
+    body {
+      background: linear-gradient(180deg, var(--felt-dark) 0%, var(--felt-medium) 100%);
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    
+    .screen {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: var(--space-lg);
+    }
+    
+    .hidden { display: none !important; }
+    
+    /* ========================================
+       JOIN/CREATE LOBBY SCREEN
+       ======================================== */
+    
+    .lobby-screen {
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .lobby-content {
+      text-align: center;
+      width: 100%;
+      max-width: 360px;
+    }
+    
+    .lobby-title {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--gold);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .lobby-subtitle {
+      color: var(--wood-light);
+      opacity: 0.8;
+      margin-bottom: var(--space-2xl);
+    }
+    
+    .lobby-tabs {
+      display: flex;
+      margin-bottom: var(--space-xl);
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 100px;
+      padding: 4px;
+    }
+    
+    .lobby-tab {
+      flex: 1;
+      padding: var(--space-md) var(--space-lg);
+      border: none;
+      background: transparent;
+      color: var(--wood-light);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 100px;
+      transition: all 0.3s ease;
+    }
+    
+    .lobby-tab.active {
+      background: var(--gold);
+      color: var(--felt-dark);
+    }
+    
+    .lobby-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .lobby-form input {
+      width: 100%;
+      padding: var(--space-lg);
+      font-family: var(--font-body);
+      font-size: 1.1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid var(--gold);
+      border-radius: 12px;
+      color: var(--cream);
+      text-align: center;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+    
+    .lobby-form input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .lobby-form input:focus {
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    }
+    
+    .lobby-form input.code-input {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+    
+    .lobby-btn {
+      padding: var(--space-lg);
+      background: var(--gold);
+      border: none;
+      border-radius: 12px;
+      font-family: var(--font-body);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--felt-dark);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: var(--space-sm);
+    }
+    
+    .lobby-btn:hover {
+      background: var(--gold-light);
+      transform: translateY(-2px);
+    }
+    
+    .lobby-btn:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .lobby-error {
+      color: #ef4444;
+      font-size: 0.9rem;
+      margin-top: var(--space-sm);
+    }
+    
+    /* ========================================
+       WAITING ROOM SCREEN
+       ======================================== */
+    
+    .waiting-screen {
+      align-items: center;
+      padding-top: var(--space-2xl);
+    }
+    
+    .lobby-code-display {
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .lobby-code-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--wood-light);
+      opacity: 0.8;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .lobby-code-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.2em;
+    }
+    
+    .lobby-code-hint {
+      font-size: 0.85rem;
+      color: var(--wood-light);
+      opacity: 0.6;
+      margin-top: var(--space-sm);
+    }
+    
+    .share-link-section {
+      margin-top: var(--space-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .share-link-input {
+      width: 100%;
+      max-width: 320px;
+      padding: var(--space-sm) var(--space-md);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      color: var(--cream);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      text-align: center;
+      cursor: pointer;
+    }
+    
+    .share-link-input:focus {
+      outline: none;
+      border-color: var(--gold-light);
+    }
+    
+    .copy-btn {
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--gold);
+      border: none;
+      border-radius: 100px;
+      color: var(--felt-dark);
+      font-family: var(--font-body);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .copy-btn:hover {
+      background: var(--gold-light);
+    }
+    
+    .copy-btn.copied {
+      background: #22c55e;
+      color: white;
+    }
+    
+    .waiting-players {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .waiting-players-title {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--wood-light);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .waiting-players-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    
+    .waiting-player {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-md) var(--space-lg);
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: 12px;
+    }
+    
+    .waiting-player.host {
+      border-color: var(--gold);
+      background: rgba(212, 175, 55, 0.1);
+    }
+    
+    .waiting-player-name {
+      font-weight: 600;
+      color: var(--cream);
+    }
+    
+    .waiting-player-badge {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 100px;
+      background: var(--gold);
+      color: var(--felt-dark);
+      font-weight: 700;
+    }
+    
+    .waiting-player-badge.you {
+      background: var(--felt-light);
+      color: var(--cream);
+    }
+    
+    /* Settings (host only) */
+    .lobby-settings {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: var(--space-xl);
+      padding: var(--space-lg);
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: 12px;
+    }
+    
+    .lobby-settings-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      margin-bottom: var(--space-md);
+    }
+    
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-md);
+    }
+    
+    .setting-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .setting-label {
+      color: var(--cream);
+      font-size: 0.95rem;
+    }
+    
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .setting-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--gold);
+      background: transparent;
+      color: var(--gold);
+      border-radius: 8px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .setting-btn:hover {
+      background: rgba(212, 175, 55, 0.2);
+    }
+    
+    .setting-value {
+      min-width: 50px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--cream);
+    }
+    
+    .start-game-btn {
+      padding: var(--space-lg) var(--space-2xl);
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    }
+    
+    .start-game-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
+    }
+    
+    .start-game-btn:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    
+    .waiting-message {
+      color: var(--wood-light);
+      font-size: 1.1rem;
+      opacity: 0.8;
+    }
+    
+    /* ========================================
+       GAME SCREEN
+       ======================================== */
+    
+    .game-screen {
+      padding-bottom: var(--space-xl);
+    }
+    
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: var(--space-md);
+      border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+      margin-bottom: var(--space-md);
+    }
+    
+    .round-info {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .round-number {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      color: var(--gold);
+      font-weight: 700;
+    }
+    
+    .player-name-display {
+      font-size: 0.85rem;
+      color: var(--wood-light);
+      opacity: 0.8;
+    }
+    
+    /* Timer */
+    .timer-section {
+      text-align: center;
+    }
+    
+    .timer-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--cream);
+      background: rgba(0, 0, 0, 0.3);
+      padding: var(--space-sm) var(--space-lg);
+      border-radius: 12px;
+      border: 2px solid var(--gold);
+      transition: all 0.3s ease;
+    }
+    
+    .timer-display.warning {
+      color: #f97316;
+      border-color: #f97316;
+      animation: pulse 0.5s ease-in-out infinite;
+    }
+    
+    .timer-display.expired {
+      color: #ef4444;
+      border-color: #ef4444;
+    }
+    
+    .timer-display.halved {
+      animation: timerHalved 0.5s ease;
+    }
+    
+    @keyframes timerHalved {
+      0% { transform: scale(1); }
+      25% { transform: scale(1.2); background: rgba(239, 68, 68, 0.3); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    .timer-halved-notice {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(239, 68, 68, 0.95);
+      color: white;
+      padding: var(--space-sm) var(--space-lg);
+      border-radius: 100px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      z-index: 1000;
+      animation: noticeSlideDown 0.3s ease;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    @keyframes noticeSlideDown {
+      from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    
+    .timer-halved-notice .notice-icon {
+      font-size: 1.1rem;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    
+    /* Community Dice Section */
+    .community-section {
+      text-align: center;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .section-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--wood-light);
+      opacity: 0.7;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .community-dice-row {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+      margin-bottom: var(--space-md);
+    }
+    
+    /* Modifier Banner */
+    .modifier-banner {
+      background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.2));
+      border: 2px solid var(--modifier-color, var(--gold));
+      border-radius: 12px;
+      padding: var(--space-sm) var(--space-md);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .modifier-banner-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .modifier-banner-badge {
+      background: var(--modifier-color, var(--gold));
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 100px;
+    }
+    
+    .modifier-banner-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--modifier-color, var(--gold));
+    }
+    
+    .modifier-banner-desc {
+      font-size: 0.8rem;
+      color: var(--cream);
+      opacity: 0.9;
+    }
+    
+    /* Your Dice Section */
+    .your-dice-section {
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .your-dice-row {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-md);
+    }
+    
+    /* Die Styles */
+    .die {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(145deg, #fffef9 0%, var(--die-bg) 100%);
+      border: 3px solid var(--die-border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 4px 8px var(--die-shadow);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .die.medium {
+      width: 65px;
+      height: 65px;
+    }
+    
+    .die .die-letter {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--felt-dark);
+      line-height: 1;
+    }
+    
+    .die.medium .die-letter {
+      font-size: 2rem;
+    }
+    
+    .die .die-points {
+      position: absolute;
+      bottom: 3px;
+      right: 5px;
+      font-size: 0.55rem;
+      font-weight: 700;
+      color: var(--burgundy);
+    }
+    
+    .die.medium .die-points {
+      font-size: 0.65rem;
+      bottom: 4px;
+      right: 6px;
+    }
+    
+    .die .die-modifier {
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--modifier-color);
+      color: white;
+      font-size: 0.5rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+    
+    .die.has-modifier {
+      border-color: var(--modifier-color);
+      box-shadow: 0 0 0 2px var(--modifier-color), 0 4px 8px var(--die-shadow);
+    }
+    
+    .die.selected {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px var(--gold), 0 0 12px rgba(212, 175, 55, 0.5);
+      transform: translateY(-3px);
+      background: linear-gradient(145deg, #fffef0 0%, #fff9e6 100%);
+    }
+    
+    .die.selected.has-modifier {
+      box-shadow: 0 0 0 3px var(--gold), 0 0 0 6px var(--modifier-color), 0 0 12px rgba(212, 175, 55, 0.5);
+    }
+    
+    .die-order {
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gold);
+      color: var(--felt-dark);
+      font-size: 0.6rem;
+      font-weight: 700;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    
+    /* Word Display */
+    .word-section {
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .word-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-sm);
+      min-height: 36px;
+    }
+    
+    .word-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--cream);
+    }
+    
+    .word-status {
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-weight: 600;
+    }
+    
+    .word-status.valid { background: #22c55e; color: white; }
+    .word-status.invalid { background: #ef4444; color: white; }
+    .word-status.checking { background: #6b7280; color: white; }
+    .word-status.short { background: #f59e0b; color: white; }
+    
+    .clear-btn {
+      padding: var(--space-xs) var(--space-lg);
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--gold);
+      border-radius: 100px;
+      color: var(--gold);
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .clear-btn:hover {
+      background: rgba(212, 175, 55, 0.2);
+    }
+    
+    /* Score Display */
+    .score-display {
+      background: rgba(0, 0, 0, 0.3);
+      border: 2px solid var(--gold);
+      border-radius: 16px;
+      padding: var(--space-md);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .score-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--wood-light);
+      opacity: 0.8;
+      margin-bottom: var(--space-xs);
+    }
+    
+    .score-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    
+    .score-breakdown {
+      font-size: 0.75rem;
+      color: var(--wood-light);
+      opacity: 0.8;
+    }
+    
+    .modifier-note {
+      font-size: 0.7rem;
+      color: var(--modifier-color, var(--wood-light));
+      margin-top: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      display: inline-block;
+    }
+    
+    /* Submit Section */
+    .submit-section {
+      text-align: center;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .submit-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      padding: var(--space-md) var(--space-2xl);
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    }
+    
+    .submit-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
+    }
+    
+    .submit-btn:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    
+    .submit-btn.submitted {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+    
+    .submission-status {
+      margin-top: var(--space-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    
+    .submission-status.confirmed {
+      color: #22c55e;
+    }
+    
+    /* Players Sidebar (who has submitted) */
+    .players-status {
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+    }
+    
+    .players-status-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--wood-light);
+      opacity: 0.7;
+      margin-bottom: var(--space-sm);
+      text-align: center;
+    }
+    
+    .players-status-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: var(--space-sm);
+    }
+    
+    .player-status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 100px;
+      font-size: 0.8rem;
+      color: var(--wood-light);
+    }
+    
+    .player-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6b7280;
+    }
+    
+    .player-status-dot.submitted {
+      background: #22c55e;
+    }
+    
+    /* ========================================
+       RESULTS SCREEN
+       ======================================== */
+    
+    .results-screen {
+      align-items: center;
+      padding-top: var(--space-xl);
+    }
+    
+    .results-header {
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .results-title {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      color: var(--gold);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .results-subtitle {
+      color: var(--wood-light);
+      opacity: 0.8;
+    }
+    
+    /* Round Results */
+    .round-results {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .result-item {
+      display: flex;
+      align-items: center;
+      padding: var(--space-md) var(--space-lg);
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: 12px;
+      margin-bottom: var(--space-sm);
+      transition: all 0.3s ease;
+    }
+    
+    .result-item.place-1 {
+      background: rgba(212, 175, 55, 0.2);
+      border-color: var(--gold);
+    }
+    
+    .result-item.place-2 {
+      background: rgba(192, 192, 192, 0.15);
+      border-color: #c0c0c0;
+    }
+    
+    .result-item.place-3 {
+      background: rgba(205, 127, 50, 0.15);
+      border-color: #cd7f32;
+    }
+    
+    .result-place {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-right: var(--space-md);
+      background: #6b7280;
+      color: white;
+    }
+    
+    .place-1 .result-place { background: var(--gold); color: var(--felt-dark); }
+    .place-2 .result-place { background: #c0c0c0; color: var(--felt-dark); }
+    .place-3 .result-place { background: #cd7f32; color: white; }
+    
+    .result-info {
+      flex: 1;
+    }
+    
+    .result-name {
+      font-weight: 600;
+      color: var(--cream);
+      margin-bottom: 2px;
+    }
+    
+    .result-word {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+      color: var(--wood-light);
+    }
+    
+    .result-score {
+      text-align: right;
+    }
+    
+    .result-word-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--cream);
+    }
+    
+    .result-points-earned {
+      font-size: 0.8rem;
+      color: var(--gold);
+    }
+    
+    /* Standings */
+    .standings-section {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .standings-title {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .standings-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    
+    .standing-item {
+      display: flex;
+      align-items: center;
+      padding: var(--space-sm) var(--space-md);
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+    }
+    
+    .standing-item.leader {
+      background: rgba(212, 175, 55, 0.15);
+      border: 1px solid var(--gold);
+    }
+    
+    .standing-rank {
+      width: 24px;
+      font-weight: 700;
+      color: var(--wood-light);
+    }
+    
+    .standing-name {
+      flex: 1;
+      color: var(--cream);
+    }
+    
+    .standing-points {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--gold);
+    }
+    
+    /* Next Round Button (host) */
+    .next-round-btn {
+      padding: var(--space-lg) var(--space-2xl);
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--felt-dark);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+    }
+    
+    .next-round-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
+    }
+    
+    .waiting-for-host {
+      color: var(--wood-light);
+      opacity: 0.8;
+      font-style: italic;
+    }
+    
+    /* ========================================
+       GAME OVER SCREEN
+       ======================================== */
+    
+    .gameover-screen {
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    
+    .winner-section {
+      margin-bottom: var(--space-2xl);
+    }
+    
+    .winner-crown {
+      font-size: 4rem;
+      margin-bottom: var(--space-md);
+    }
+    
+    .winner-label {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--wood-light);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .winner-name {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--gold);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .winner-points {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      color: var(--cream);
+    }
+    
+    .final-standings {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: var(--space-xl);
+    }
+    
+    /* Round History */
+    .round-history-section {
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: var(--space-2xl);
+    }
+    
+    .round-history-title {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--wood-light);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .round-history-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      max-height: 350px;
+      overflow-y: auto;
+      padding-right: var(--space-sm);
+    }
+    
+    .round-history-item {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      border-radius: 12px;
+      padding: var(--space-md);
+    }
+    
+    .round-history-header {
+      margin-bottom: var(--space-sm);
+      padding-bottom: var(--space-sm);
+      border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+    }
+    
+    .round-history-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--space-xs);
+    }
+    
+    .round-history-number {
+      font-weight: 700;
+      color: var(--gold);
+      font-size: 1rem;
+    }
+    
+    .round-history-meta {
+      text-align: right;
+    }
+    
+    .round-history-letters-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--wood-light);
+      opacity: 0.5;
+    }
+    
+    .round-history-letters-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--cream);
+      letter-spacing: 0.1em;
+    }
+    
+    .round-history-modifier {
+      font-size: 0.7rem;
+      color: var(--gold);
+      opacity: 0.8;
+    }
+    
+    /* Column headers */
+    .round-history-columns {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--space-sm);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .rh-col-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--wood-light);
+      opacity: 0.5;
+    }
+    
+    .rh-col-left {
+      flex: 1;
+    }
+    
+    .rh-col-right {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .rh-col-right .rh-col-label {
+      min-width: 40px;
+      text-align: right;
+    }
+    
+    .rh-col-right .rh-col-label:first-child {
+      min-width: 35px;
+    }
+    
+    .round-history-results {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    
+    .round-history-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-xs) var(--space-sm);
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      font-size: 0.85rem;
+    }
+    
+    .round-history-row.place-1 {
+      background: rgba(212, 175, 55, 0.15);
+    }
+    
+    .round-history-row.place-2 {
+      background: rgba(192, 192, 192, 0.1);
+    }
+    
+    .round-history-row.place-3 {
+      background: rgba(205, 127, 50, 0.1);
+    }
+    
+    .rh-player-info {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .rh-place {
+      font-size: 0.85rem;
+      width: 20px;
+      flex-shrink: 0;
+    }
+    
+    .rh-name {
+      color: var(--cream);
+      font-weight: 600;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 70px;
+      flex-shrink: 0;
+    }
+    
+    .rh-word {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--gold-light);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .rh-word.invalid {
+      color: #ef4444;
+      opacity: 0.7;
+    }
+    
+    .rh-word.none {
+      color: var(--wood-light);
+      opacity: 0.4;
+      font-style: italic;
+      text-transform: none;
+    }
+    
+    .rh-scores {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      text-align: right;
+      flex-shrink: 0;
+    }
+    
+    .rh-word-score {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cream);
+      font-size: 0.75rem;
+      min-width: 35px;
+      text-align: right;
+      opacity: 0.8;
+    }
+    
+    .rh-points-earned {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.8rem;
+      min-width: 40px;
+      text-align: right;
+    }
+    
+    .rh-points-earned.earned {
+      color: var(--gold);
+    }
+    
+    .rh-points-earned.zero {
+      color: var(--wood-light);
+      opacity: 0.4;
+    }
+    
+    .rh-running-total {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--cream);
+      min-width: 30px;
+      text-align: right;
+      font-weight: 600;
+    }
+    
+    .play-again-btn {
+      padding: var(--space-lg) var(--space-2xl);
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    }
+    
+    .play-again-btn:hover {
+      transform: translateY(-2px);
+    }
+    
+    /* ========================================
+       ANIMATION OVERLAY
+       ======================================== */
+    
+    .animation-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(26, 71, 42, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .animation-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .overlay-text {
+      font-family: var(--font-display);
+      font-size: 2rem;
+      color: var(--gold);
+      margin-bottom: var(--space-md);
+    }
+    
+    .overlay-subtext {
+      color: var(--wood-light);
+      font-size: 1.1rem;
+    }
+    
+    /* Reconnecting banner */
+    .reconnecting-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #f97316;
+      color: white;
+      text-align: center;
+      padding: var(--space-sm);
+      font-size: 0.85rem;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <!-- Reconnecting Banner -->
+  <div class="reconnecting-banner hidden" id="reconnectingBanner">
+    Reconnecting...
+  </div>
+
+  <!-- ========================================
+       LOBBY SCREEN (Create/Join)
+       ======================================== -->
+  <div class="screen lobby-screen" id="lobbyScreen">
+    <div class="lobby-content">
+      <h1 class="lobby-title">Scrabble Hold'em</h1>
+      <p class="lobby-subtitle">Roll. Spell. Win.</p>
+      
+      <div class="lobby-tabs">
+        <button class="lobby-tab active" id="createTab">Create Game</button>
+        <button class="lobby-tab" id="joinTab">Join Game</button>
+      </div>
+      
+      <!-- Create Form -->
+      <form class="lobby-form" id="createForm">
+        <input type="text" id="createName" placeholder="Your name" maxlength="20" autocomplete="off" required>
+        <button type="submit" class="lobby-btn">Create Lobby</button>
+      </form>
+      
+      <!-- Join Form -->
+      <form class="lobby-form hidden" id="joinForm">
+        <input type="text" id="joinName" placeholder="Your name" maxlength="20" autocomplete="off" required>
+        <input type="text" id="joinCode" class="code-input" placeholder="ABCD" maxlength="4" autocomplete="off" required>
+        <button type="submit" class="lobby-btn">Join Lobby</button>
+        <p class="lobby-error hidden" id="joinError"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================
+       WAITING ROOM SCREEN
+       ======================================== -->
+  <div class="screen waiting-screen hidden" id="waitingScreen">
+    <div class="lobby-code-display">
+      <div class="lobby-code-label">Lobby Code</div>
+      <div class="lobby-code-value" id="lobbyCodeDisplay">----</div>
+      <div class="lobby-code-hint">Share this link with friends:</div>
+      <div class="share-link-section">
+        <input type="text" class="share-link-input" id="shareLinkInput" readonly>
+        <button class="copy-btn" id="copyLinkBtn">📋 Copy Link</button>
+      </div>
+    </div>
+    
+    <div class="waiting-players">
+      <div class="waiting-players-title">Players (<span id="playerCount">0</span>)</div>
+      <div class="waiting-players-list" id="waitingPlayersList">
+        <!-- Players will be inserted here -->
+      </div>
+    </div>
+    
+    <!-- Host Settings -->
+    <div class="lobby-settings" id="hostSettings">
+      <div class="lobby-settings-title">Game Settings</div>
+      <div class="setting-row">
+        <span class="setting-label">Rounds</span>
+        <div class="setting-control">
+          <button class="setting-btn" id="roundsDown">−</button>
+          <span class="setting-value" id="roundsValue">10</span>
+          <button class="setting-btn" id="roundsUp">+</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Timer</span>
+        <div class="setting-control">
+          <button class="setting-btn" id="timerDown">−</button>
+          <span class="setting-value" id="timerValue">1:15</span>
+          <button class="setting-btn" id="timerUp">+</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Start Game (host only) -->
+    <button class="start-game-btn" id="startGameBtn">🎲 Start Game</button>
+    
+    <!-- Waiting message (non-host) -->
+    <p class="waiting-message hidden" id="waitingMessage">Waiting for host to start...</p>
+  </div>
+
+  <!-- ========================================
+       GAME SCREEN
+       ======================================== -->
+  <div class="screen game-screen hidden" id="gameScreen">
+    <header class="game-header">
+      <div class="round-info">
+        <div class="round-number">Round <span id="roundNumber">1</span> of <span id="totalRounds">10</span></div>
+        <div class="player-name-display" id="playerNameDisplay">Player</div>
+      </div>
+      <div class="timer-section">
+        <div class="timer-display" id="timerDisplay">1:15</div>
+      </div>
+    </header>
+    
+    <main class="game-main">
+      <!-- Community Dice -->
+      <div class="community-section">
+        <div class="section-label">Community Dice</div>
+        <div class="community-dice-row" id="communityDice">
+          <!-- Community dice inserted here -->
+        </div>
+        
+        <div class="modifier-banner" id="modifierBanner">
+          <div class="modifier-banner-title">
+            <span class="modifier-banner-badge" id="modifierBadge">×2</span>
+            <span class="modifier-banner-name" id="modifierName">Double Letter</span>
+          </div>
+          <div class="modifier-banner-desc" id="modifierDesc">This letter scores ×2 points</div>
+        </div>
+      </div>
+      
+      <!-- Your Dice -->
+      <div class="your-dice-section">
+        <div class="section-label">Your Letters</div>
+        <div class="your-dice-row" id="playerDice">
+          <!-- Player dice inserted here -->
+        </div>
+      </div>
+      
+      <!-- Word Building -->
+      <div class="word-section">
+        <div class="word-display">
+          <span class="word-text" id="wordText"></span>
+          <span class="word-status" id="wordStatus"></span>
+        </div>
+        <button class="clear-btn" id="clearBtn">Clear</button>
+      </div>
+      
+      <!-- Score -->
+      <div class="score-display">
+        <div class="score-label">Your Score</div>
+        <div class="score-value" id="scoreValue">0</div>
+        <div class="score-breakdown" id="scoreBreakdown">Tap letters in order</div>
+        <div class="modifier-note hidden" id="modifierNote"></div>
+      </div>
+      
+      <!-- Submit -->
+      <div class="submit-section">
+        <button class="submit-btn" id="submitBtn" disabled>
+          <span>📤</span>
+          <span id="submitBtnText">Submit Word</span>
+        </button>
+        <div class="submission-status hidden" id="submissionStatus"></div>
+      </div>
+      
+      <!-- Players Status -->
+      <div class="players-status">
+        <div class="players-status-title">Players</div>
+        <div class="players-status-list" id="playersStatusList">
+          <!-- Player status items -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========================================
+       RESULTS SCREEN
+       ======================================== -->
+  <div class="screen results-screen hidden" id="resultsScreen">
+    <div class="results-header">
+      <h2 class="results-title">Round <span id="resultsRoundNumber">1</span> Results</h2>
+      <p class="results-subtitle">Round <span id="resultsCurrentRound">1</span> of <span id="resultsTotalRounds">10</span></p>
+    </div>
+    
+    <div class="round-results" id="roundResults">
+      <!-- Result items inserted here -->
+    </div>
+    
+    <div class="standings-section">
+      <div class="standings-title">Standings</div>
+      <div class="standings-list" id="standingsList">
+        <!-- Standing items inserted here -->
+      </div>
+    </div>
+    
+    <!-- Host: Next Round or Final Results -->
+    <button class="next-round-btn" id="nextRoundBtn">🎲 Next Round</button>
+    <button class="next-round-btn" id="finalResultsBtn" style="display: none; background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🏆 See Final Results</button>
+    <p class="waiting-for-host hidden" id="waitingForNextRound">Waiting for host...</p>
+  </div>
+
+  <!-- ========================================
+       GAME OVER SCREEN
+       ======================================== -->
+  <div class="screen gameover-screen hidden" id="gameoverScreen">
+    <div class="winner-section">
+      <div class="winner-crown">👑</div>
+      <div class="winner-label">Winner</div>
+      <div class="winner-name" id="winnerName">Player</div>
+      <div class="winner-points" id="winnerPoints">0 points</div>
+    </div>
+    
+    <div class="final-standings">
+      <div class="standings-title">Final Standings</div>
+      <div class="standings-list" id="finalStandingsList">
+        <!-- Final standings inserted here -->
+      </div>
+    </div>
+    
+    <div class="round-history-section">
+      <div class="round-history-title">Round-by-Round</div>
+      <div class="round-history-list" id="roundHistoryList">
+        <!-- Round history inserted here -->
+      </div>
+    </div>
+    
+    <!-- Host: Play Again -->
+    <button class="play-again-btn" id="playAgainBtn">🎲 Play Again</button>
+    <p class="waiting-for-host hidden" id="waitingForPlayAgain">Waiting for host...</p>
+  </div>
+
+  <!-- ========================================
+       ANIMATION OVERLAY
+       ======================================== -->
+  <div class="animation-overlay" id="animationOverlay">
+    <div class="overlay-text" id="overlayText">🎲 Rolling...</div>
+    <div class="overlay-subtext" id="overlaySubtext">Get ready!</div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // ========================================
+    // STATE
+    // ========================================
+    const STORAGE_KEY = 'scrabbleHoldem_session';
+    
+    let socket;
+    let session = loadSession();
+    let currentState = null;
+    let selectedDice = [];
+    let currentSubmission = null;
+    let hasSubmitted = false;
+    
+    // ========================================
+    // DOM ELEMENTS
+    // ========================================
+    const screens = {
+      lobby: document.getElementById('lobbyScreen'),
+      waiting: document.getElementById('waitingScreen'),
+      game: document.getElementById('gameScreen'),
+      results: document.getElementById('resultsScreen'),
+      gameover: document.getElementById('gameoverScreen'),
+    };
+    
+    const elements = {
+      // Lobby
+      createTab: document.getElementById('createTab'),
+      joinTab: document.getElementById('joinTab'),
+      createForm: document.getElementById('createForm'),
+      joinForm: document.getElementById('joinForm'),
+      createName: document.getElementById('createName'),
+      joinName: document.getElementById('joinName'),
+      joinCode: document.getElementById('joinCode'),
+      joinError: document.getElementById('joinError'),
+      
+      // Waiting
+      lobbyCodeDisplay: document.getElementById('lobbyCodeDisplay'),
+      shareLinkInput: document.getElementById('shareLinkInput'),
+      copyLinkBtn: document.getElementById('copyLinkBtn'),
+      playerCount: document.getElementById('playerCount'),
+      waitingPlayersList: document.getElementById('waitingPlayersList'),
+      hostSettings: document.getElementById('hostSettings'),
+      roundsValue: document.getElementById('roundsValue'),
+      timerValue: document.getElementById('timerValue'),
+      startGameBtn: document.getElementById('startGameBtn'),
+      waitingMessage: document.getElementById('waitingMessage'),
+      
+      // Game
+      roundNumber: document.getElementById('roundNumber'),
+      totalRounds: document.getElementById('totalRounds'),
+      playerNameDisplay: document.getElementById('playerNameDisplay'),
+      timerDisplay: document.getElementById('timerDisplay'),
+      communityDice: document.getElementById('communityDice'),
+      modifierBanner: document.getElementById('modifierBanner'),
+      modifierBadge: document.getElementById('modifierBadge'),
+      modifierName: document.getElementById('modifierName'),
+      modifierDesc: document.getElementById('modifierDesc'),
+      playerDice: document.getElementById('playerDice'),
+      wordText: document.getElementById('wordText'),
+      wordStatus: document.getElementById('wordStatus'),
+      clearBtn: document.getElementById('clearBtn'),
+      scoreValue: document.getElementById('scoreValue'),
+      scoreBreakdown: document.getElementById('scoreBreakdown'),
+      modifierNote: document.getElementById('modifierNote'),
+      submitBtn: document.getElementById('submitBtn'),
+      submitBtnText: document.getElementById('submitBtnText'),
+      submissionStatus: document.getElementById('submissionStatus'),
+      playersStatusList: document.getElementById('playersStatusList'),
+      
+      // Results
+      resultsRoundNumber: document.getElementById('resultsRoundNumber'),
+      resultsCurrentRound: document.getElementById('resultsCurrentRound'),
+      resultsTotalRounds: document.getElementById('resultsTotalRounds'),
+      roundResults: document.getElementById('roundResults'),
+      standingsList: document.getElementById('standingsList'),
+      nextRoundBtn: document.getElementById('nextRoundBtn'),
+      finalResultsBtn: document.getElementById('finalResultsBtn'),
+      waitingForNextRound: document.getElementById('waitingForNextRound'),
+      
+      // Game Over
+      winnerName: document.getElementById('winnerName'),
+      winnerPoints: document.getElementById('winnerPoints'),
+      finalStandingsList: document.getElementById('finalStandingsList'),
+      roundHistoryList: document.getElementById('roundHistoryList'),
+      playAgainBtn: document.getElementById('playAgainBtn'),
+      waitingForPlayAgain: document.getElementById('waitingForPlayAgain'),
+      
+      // Misc
+      animationOverlay: document.getElementById('animationOverlay'),
+      overlayText: document.getElementById('overlayText'),
+      overlaySubtext: document.getElementById('overlaySubtext'),
+      reconnectingBanner: document.getElementById('reconnectingBanner'),
+    };
+    
+    // ========================================
+    // UTILITIES
+    // ========================================
+    function loadSession() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    
+    function saveSession(lobbyCode, visibleId, name) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ lobbyCode, visibleId, name }));
+        session = { lobbyCode, visibleId, name };
+      } catch (e) {
+        console.error('Failed to save session:', e);
+      }
+    }
+    
+    function clearSession() {
+      localStorage.removeItem(STORAGE_KEY);
+      session = null;
+    }
+    
+    function showScreen(screenName) {
+      Object.values(screens).forEach(s => s.classList.add('hidden'));
+      screens[screenName]?.classList.remove('hidden');
+    }
+    
+    function showOverlay(text, subtext) {
+      elements.overlayText.textContent = text;
+      elements.overlaySubtext.textContent = subtext || '';
+      elements.animationOverlay.classList.add('active');
+    }
+    
+    function hideOverlay() {
+      elements.animationOverlay.classList.remove('active');
+    }
+    
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    // ========================================
+    // LOBBY TAB SWITCHING
+    // ========================================
+    elements.createTab.addEventListener('click', () => {
+      elements.createTab.classList.add('active');
+      elements.joinTab.classList.remove('active');
+      elements.createForm.classList.remove('hidden');
+      elements.joinForm.classList.add('hidden');
+    });
+    
+    elements.joinTab.addEventListener('click', () => {
+      elements.joinTab.classList.add('active');
+      elements.createTab.classList.remove('active');
+      elements.joinForm.classList.remove('hidden');
+      elements.createForm.classList.add('hidden');
+    });
+    
+    // ========================================
+    // LOBBY FORMS
+    // ========================================
+    elements.createForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = elements.createName.value.trim();
+      if (!name) return;
+      
+      socket.emit('lobby:create', { name });
+    });
+    
+    elements.joinForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = elements.joinName.value.trim();
+      const code = elements.joinCode.value.trim().toUpperCase();
+      
+      if (!name || code.length !== 4) {
+        elements.joinError.textContent = 'Please enter name and 4-letter code';
+        elements.joinError.classList.remove('hidden');
+        return;
+      }
+      
+      elements.joinError.classList.add('hidden');
+      socket.emit('lobby:join', { name, code });
+    });
+    
+    // ========================================
+    // WAITING ROOM
+    // ========================================
+    function generateShareLink(lobbyCode) {
+      const url = new URL(window.location.href);
+      url.pathname = '/play';
+      url.search = `?code=${lobbyCode}`;
+      return url.toString();
+    }
+    
+    function updateWaitingRoom(state) {
+      currentState = state;
+      
+      elements.lobbyCodeDisplay.textContent = state.lobbyCode;
+      elements.shareLinkInput.value = generateShareLink(state.lobbyCode);
+      elements.playerCount.textContent = state.players.length;
+      
+      // Render players
+      elements.waitingPlayersList.innerHTML = state.players.map(p => `
+        <div class="waiting-player ${p.isHost ? 'host' : ''}">
+          <span class="waiting-player-name">${p.name}</span>
+          <div>
+            ${p.isHost ? '<span class="waiting-player-badge">Host</span>' : ''}
+            ${p.visibleId === session?.visibleId ? '<span class="waiting-player-badge you">You</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+      
+      // Show/hide host controls
+      const isHost = state.isHost;
+      elements.hostSettings.style.display = isHost ? 'block' : 'none';
+      elements.startGameBtn.style.display = isHost ? 'block' : 'none';
+      elements.waitingMessage.classList.toggle('hidden', isHost);
+      
+      // Update settings display
+      elements.roundsValue.textContent = state.settings.totalRounds;
+      elements.timerValue.textContent = formatTime(state.settings.timerDuration);
+      
+      // Disable start if < 2 players
+      elements.startGameBtn.disabled = state.players.length < 2;
+    }
+    
+    // Settings controls
+    let settingsRounds = 10;
+    let settingsTimer = 75;
+    
+    document.getElementById('roundsDown').addEventListener('click', () => {
+      settingsRounds = Math.max(3, settingsRounds - 1);
+      elements.roundsValue.textContent = settingsRounds;
+      socket.emit('lobby:updateSettings', { totalRounds: settingsRounds });
+    });
+    
+    document.getElementById('roundsUp').addEventListener('click', () => {
+      settingsRounds = Math.min(20, settingsRounds + 1);
+      elements.roundsValue.textContent = settingsRounds;
+      socket.emit('lobby:updateSettings', { totalRounds: settingsRounds });
+    });
+    
+    document.getElementById('timerDown').addEventListener('click', () => {
+      settingsTimer = Math.max(30, settingsTimer - 15);
+      elements.timerValue.textContent = formatTime(settingsTimer);
+      socket.emit('lobby:updateSettings', { timerDuration: settingsTimer });
+    });
+    
+    document.getElementById('timerUp').addEventListener('click', () => {
+      settingsTimer = Math.min(180, settingsTimer + 15);
+      elements.timerValue.textContent = formatTime(settingsTimer);
+      socket.emit('lobby:updateSettings', { timerDuration: settingsTimer });
+    });
+    
+    elements.startGameBtn.addEventListener('click', () => {
+      socket.emit('game:start');
+    });
+    
+    // Copy link button
+    elements.copyLinkBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(elements.shareLinkInput.value);
+        elements.copyLinkBtn.textContent = '✓ Copied!';
+        elements.copyLinkBtn.classList.add('copied');
+        setTimeout(() => {
+          elements.copyLinkBtn.textContent = '📋 Copy Link';
+          elements.copyLinkBtn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        // Fallback: select the input
+        elements.shareLinkInput.select();
+        document.execCommand('copy');
+        elements.copyLinkBtn.textContent = '✓ Copied!';
+        elements.copyLinkBtn.classList.add('copied');
+        setTimeout(() => {
+          elements.copyLinkBtn.textContent = '📋 Copy Link';
+          elements.copyLinkBtn.classList.remove('copied');
+        }, 2000);
+      }
+    });
+    
+    // Also copy when clicking the input
+    elements.shareLinkInput.addEventListener('click', () => {
+      elements.shareLinkInput.select();
+    });
+    
+    // ========================================
+    // GAME SCREEN
+    // ========================================
+    function updateGameScreen(state) {
+      currentState = state;
+      
+      elements.roundNumber.textContent = state.roundNumber;
+      elements.totalRounds.textContent = state.totalRounds;
+      elements.playerNameDisplay.textContent = state.player.name;
+      elements.timerDisplay.textContent = formatTime(state.timerRemaining);
+      
+      // Update modifier banner
+      if (state.modifier) {
+        const mod = state.modifier;
+        const modDie = state.communityDice[mod.dieIndex];
+        elements.modifierBanner.style.setProperty('--modifier-color', mod.color);
+        elements.modifierBadge.textContent = mod.shortName;
+        elements.modifierBadge.style.background = mod.color;
+        elements.modifierName.textContent = mod.name;
+        elements.modifierName.style.color = mod.color;
+        elements.modifierDesc.textContent = `Letter "${modDie.letter}": ${mod.desc}`;
+      }
+      
+      // Clear selection
+      selectedDice = [];
+      hasSubmitted = false;
+      currentSubmission = null;
+      elements.submissionStatus.classList.add('hidden');
+      
+      renderDice();
+      calculateScore();
+      updatePlayersStatus(state.players);
+    }
+    
+    function renderDice() {
+      if (!currentState) return;
+      
+      const mod = currentState.modifier;
+      
+      // Community dice
+      elements.communityDice.innerHTML = currentState.communityDice.map((die, i) => {
+        const dieId = `community-${i}`;
+        const isSelected = selectedDice.includes(dieId);
+        const order = selectedDice.indexOf(dieId) + 1;
+        const isModified = mod && mod.dieIndex === i;
+        
+        return `
+          <div class="die ${isSelected ? 'selected' : ''} ${isModified ? 'has-modifier' : ''}"
+               data-die-id="${dieId}"
+               style="${isModified ? `--modifier-color: ${mod.color}` : ''}">
+            <span class="die-letter">${die.letter}</span>
+            <span class="die-points">${die.points}</span>
+            ${isModified ? `<span class="die-modifier">${mod.shortName}</span>` : ''}
+            ${isSelected ? `<span class="die-order">${order}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+      
+      // Player dice
+      elements.playerDice.innerHTML = currentState.player.dice.map((die, i) => {
+        const dieId = `player-${i}`;
+        const isSelected = selectedDice.includes(dieId);
+        const order = selectedDice.indexOf(dieId) + 1;
+        
+        return `
+          <div class="die medium ${isSelected ? 'selected' : ''}"
+               data-die-id="${dieId}">
+            <span class="die-letter">${die.letter}</span>
+            <span class="die-points">${die.points}</span>
+            ${isSelected ? `<span class="die-order">${order}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+      
+      // Add click handlers
+      document.querySelectorAll('.die[data-die-id]').forEach(el => {
+        el.addEventListener('click', () => toggleDie(el.dataset.dieId));
+      });
+    }
+    
+    function toggleDie(dieId) {
+      const idx = selectedDice.indexOf(dieId);
+      if (idx >= 0) {
+        selectedDice.splice(idx, 1);
+      } else {
+        selectedDice.push(dieId);
+      }
+      renderDice();
+      calculateScore();
+    }
+    
+    function getDieData(dieId) {
+      const [type, indexStr] = dieId.split('-');
+      const index = parseInt(indexStr);
+      if (type === 'player') {
+        return currentState.player.dice[index];
+      }
+      return currentState.communityDice[index];
+    }
+    
+    function isVowel(letter) {
+      return ['A', 'E', 'I', 'O', 'U'].includes(letter.toUpperCase());
+    }
+    
+    function hasPlayerLetter() {
+      return selectedDice.some(id => id.startsWith('player-'));
+    }
+    
+    let validationTimeout = null;
+    
+    async function validateWord(word) {
+      if (!word || word.length < 2) {
+        elements.wordText.textContent = word || '';
+        if (word && word.length === 1) {
+          elements.wordStatus.textContent = 'Keep going...';
+          elements.wordStatus.className = 'word-status short';
+        } else {
+          elements.wordStatus.textContent = '';
+          elements.wordStatus.className = 'word-status';
+        }
+        updateSubmitButton(false);
+        return;
+      }
+      
+      elements.wordText.textContent = word;
+      elements.wordStatus.textContent = '...';
+      elements.wordStatus.className = 'word-status checking';
+      
+      if (validationTimeout) clearTimeout(validationTimeout);
+      validationTimeout = setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/validate/${encodeURIComponent(word)}`);
+          const result = await response.json();
+          
+          if (result.isValid) {
+            elements.wordStatus.textContent = '✓ Valid';
+            elements.wordStatus.className = 'word-status valid';
+            updateSubmitButton(true);
+            if (currentSubmission) currentSubmission.isValid = true;
+          } else {
+            elements.wordStatus.textContent = '✗ Invalid';
+            elements.wordStatus.className = 'word-status invalid';
+            updateSubmitButton(false);
+            if (currentSubmission) currentSubmission.isValid = false;
+          }
+        } catch (err) {
+          elements.wordStatus.textContent = '?';
+          elements.wordStatus.className = 'word-status';
+          updateSubmitButton(false);
+        }
+      }, 200);
+    }
+    
+    function calculateScore() {
+      if (!currentState || selectedDice.length === 0) {
+        elements.scoreValue.textContent = '0';
+        elements.scoreBreakdown.textContent = 'Tap letters in order';
+        elements.modifierNote.classList.add('hidden');
+        elements.wordText.textContent = '';
+        elements.wordStatus.textContent = '';
+        updateSubmitButton(false);
+        return;
+      }
+      
+      const modifier = currentState.modifier;
+      const modifierDieId = `community-${modifier.dieIndex}`;
+      const modifierSelected = selectedDice.includes(modifierDieId);
+      const modifierPosition = selectedDice.indexOf(modifierDieId);
+      const wordLength = selectedDice.length;
+      
+      // Build word data
+      const wordDice = selectedDice.map(dieId => ({
+        id: dieId,
+        die: getDieData(dieId),
+        isModified: dieId === modifierDieId
+      }));
+      
+      // Calculate modifier
+      let modifierApplies = false;
+      let modifierMultiplier = 1;
+      let modifierBonusPoints = 0;
+      let modifierStatus = '';
+      
+      if (modifierSelected) {
+        const modDie = getDieData(modifierDieId);
+        
+        switch (modifier.type) {
+          case 'multiply':
+            modifierApplies = true;
+            modifierMultiplier = modifier.multiplier;
+            modifierStatus = `✓ ${modifier.name}: ×${modifier.multiplier} on ${modDie.letter}`;
+            break;
+            
+          case 'position':
+            if (modifier.position === 'start' && modifierPosition === 0) {
+              modifierApplies = true;
+              modifierMultiplier = modifier.multiplier;
+              modifierStatus = `✓ ${modDie.letter} is FIRST → ×${modifier.multiplier}`;
+            } else if (modifier.position === 'end' && modifierPosition === wordLength - 1) {
+              modifierApplies = true;
+              modifierMultiplier = modifier.multiplier;
+              modifierStatus = `✓ ${modDie.letter} is LAST → ×${modifier.multiplier}`;
+            } else if (modifier.position === 'middle' && modifierPosition > 0 && modifierPosition < wordLength - 1) {
+              modifierApplies = true;
+              modifierMultiplier = modifier.multiplier;
+              modifierStatus = `✓ ${modDie.letter} is in MIDDLE → ×${modifier.multiplier}`;
+            } else {
+              modifierStatus = `✗ ${modDie.letter} not in ${modifier.position} position`;
+            }
+            break;
+            
+          case 'length':
+            if (modifier.minLength && wordLength >= modifier.minLength) {
+              modifierApplies = true;
+              modifierBonusPoints = modifier.bonus || 0;
+              modifierMultiplier = modifier.multiplier || 1;
+              modifierStatus = `✓ Word is ${wordLength} letters (≥${modifier.minLength}) → +${modifier.bonus}`;
+            } else if (modifier.exactLength && wordLength === modifier.exactLength) {
+              modifierApplies = true;
+              modifierBonusPoints = modifier.bonus || 0;
+              modifierMultiplier = modifier.multiplier || 1;
+              const bonusText = modifier.bonus ? ` +${modifier.bonus}` : '';
+              const multText = modifier.multiplier > 1 ? `×${modifier.multiplier}` : '';
+              modifierStatus = `✓ Word is exactly ${wordLength} letters → ${multText}${bonusText}`;
+            } else {
+              const needed = modifier.minLength ? `≥${modifier.minLength}` : `=${modifier.exactLength}`;
+              modifierStatus = `✗ Word is ${wordLength} letters (need ${needed})`;
+            }
+            break;
+            
+          case 'parity':
+            const isOdd = wordLength % 2 === 1;
+            if ((modifier.parity === 'odd' && isOdd) || (modifier.parity === 'even' && !isOdd)) {
+              modifierApplies = true;
+              modifierBonusPoints = modifier.bonus;
+              modifierStatus = `✓ Word has ${wordLength} (${modifier.parity}) letters → +${modifier.bonus}`;
+            } else {
+              modifierStatus = `✗ Word has ${wordLength} letters (not ${modifier.parity})`;
+            }
+            break;
+            
+          case 'neighbor':
+            const prevDie = modifierPosition > 0 ? getDieData(selectedDice[modifierPosition - 1]) : null;
+            const nextDie = modifierPosition < wordLength - 1 ? getDieData(selectedDice[modifierPosition + 1]) : null;
+            const hasVowelNeighbor = (prevDie && isVowel(prevDie.letter)) || (nextDie && isVowel(nextDie.letter));
+            
+            if (hasVowelNeighbor) {
+              modifierApplies = true;
+              modifierMultiplier = modifier.multiplier;
+              modifierStatus = `✓ ${modDie.letter} is next to a vowel → ×${modifier.multiplier}`;
+            } else {
+              modifierStatus = `✗ ${modDie.letter} not next to a vowel`;
+            }
+            break;
+            
+          case 'bonus':
+            modifierApplies = true;
+            modifierBonusPoints = modifier.bonus;
+            modifierStatus = `✓ Bonus: +${modifier.bonus} points`;
+            break;
+        }
+      }
+      
+      // Calculate scores
+      let letterScores = [];
+      let baseScore = 0;
+      
+      wordDice.forEach(wd => {
+        let points = wd.die.points;
+        let label = wd.die.letter;
+        
+        if (wd.isModified && modifierApplies && modifierMultiplier > 1) {
+          points *= modifierMultiplier;
+          label = `${wd.die.letter}×${modifierMultiplier}`;
+        }
+        
+        baseScore += points;
+        letterScores.push({ letter: label, points });
+      });
+      
+      const totalScore = baseScore + modifierBonusPoints;
+      let breakdown = letterScores.map(l => `${l.letter}(${l.points})`).join(' + ');
+      
+      if (modifierBonusPoints > 0) {
+        breakdown += ` + ${modifierBonusPoints}`;
+      }
+      
+      breakdown += ` = ${totalScore}`;
+      
+      elements.scoreValue.textContent = totalScore;
+      elements.scoreBreakdown.textContent = breakdown;
+      
+      // Show modifier status
+      if (modifierSelected && modifier) {
+        elements.modifierNote.classList.remove('hidden');
+        elements.modifierNote.style.setProperty('--modifier-color', modifierApplies ? modifier.color : '#6b7280');
+        elements.modifierNote.innerHTML = modifierStatus;
+      } else {
+        elements.modifierNote.classList.add('hidden');
+      }
+      
+      // Build word
+      const word = wordDice.map(wd => wd.die.letter).join('');
+      
+      // Store submission data
+      currentSubmission = {
+        word,
+        score: totalScore,
+        breakdown,
+        isValid: false,
+      };
+      
+      // Disable submit button immediately while validation is pending
+      elements.submitBtn.disabled = true;
+      elements.submitBtnText.textContent = 'Checking...';
+      
+      validateWord(word);
+    }
+    
+    function updateSubmitButton(isValid) {
+      const usesPlayerLetter = hasPlayerLetter();
+      const canSubmit = isValid && usesPlayerLetter && currentSubmission?.word?.length >= 2;
+      
+      if (canSubmit) {
+        elements.submitBtn.disabled = false;
+        if (hasSubmitted) {
+          elements.submitBtn.classList.add('submitted');
+          elements.submitBtnText.textContent = 'Update';
+        } else {
+          elements.submitBtn.classList.remove('submitted');
+          elements.submitBtnText.textContent = 'Submit Word';
+        }
+      } else {
+        elements.submitBtn.disabled = true;
+        elements.submitBtn.classList.remove('submitted');
+        
+        if (!usesPlayerLetter && selectedDice.length > 0) {
+          elements.submitBtnText.textContent = 'Use your letters!';
+        } else if (!isValid && currentSubmission?.word?.length >= 2) {
+          elements.submitBtnText.textContent = 'Invalid word';
+        } else {
+          elements.submitBtnText.textContent = 'Submit Word';
+        }
+      }
+    }
+    
+    function updatePlayersStatus(players) {
+      elements.playersStatusList.innerHTML = players.map(p => `
+        <div class="player-status-item">
+          <span class="player-status-dot ${p.hasSubmitted ? 'submitted' : ''}"></span>
+          <span>${p.name}</span>
+        </div>
+      `).join('');
+    }
+    
+    elements.clearBtn.addEventListener('click', () => {
+      selectedDice = [];
+      renderDice();
+      calculateScore();
+    });
+    
+    elements.submitBtn.addEventListener('click', () => {
+      if (!currentSubmission || !currentSubmission.word) return;
+      
+      socket.emit('player:submitWord', currentSubmission);
+      elements.submitBtn.disabled = true;
+      elements.submitBtnText.textContent = 'Submitting...';
+    });
+    
+    // ========================================
+    // RESULTS SCREEN
+    // ========================================
+    function showResults(data) {
+      elements.resultsRoundNumber.textContent = data.roundNumber;
+      elements.resultsCurrentRound.textContent = data.roundNumber;
+      elements.resultsTotalRounds.textContent = data.totalRounds;
+      
+      // Render round results
+      elements.roundResults.innerHTML = data.results.map(r => {
+        const placeClass = r.place ? `place-${r.place}` : '';
+        const placeText = r.place || '—';
+        const pointsText = r.pointsEarned ? `+${r.pointsEarned} pts` : '';
+        const wordDisplay = r.noSubmission ? '(no submission)' : (r.isInvalid ? `${r.word} (invalid)` : r.word);
+        
+        return `
+          <div class="result-item ${placeClass}">
+            <div class="result-place">${placeText}</div>
+            <div class="result-info">
+              <div class="result-name">${r.name}${r.visibleId === session?.visibleId ? ' (you)' : ''}</div>
+              <div class="result-word">${wordDisplay}</div>
+            </div>
+            <div class="result-score">
+              <div class="result-word-score">${r.score} pts</div>
+              <div class="result-points-earned">${pointsText}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // Render standings
+      renderStandings(elements.standingsList, data.standings);
+      
+      // Show/hide next round button or final results button
+      const isHost = currentState?.isHost;
+      const isLastRound = data.isLastRound;
+      
+      elements.nextRoundBtn.style.display = isHost && !isLastRound ? 'block' : 'none';
+      elements.finalResultsBtn.style.display = isHost && isLastRound ? 'block' : 'none';
+      elements.waitingForNextRound.classList.toggle('hidden', isHost);
+      elements.waitingForNextRound.textContent = isLastRound ? 'Waiting for final results...' : 'Waiting for host...';
+      
+      showScreen('results');
+    }
+    
+    function renderStandings(container, standings) {
+      container.innerHTML = standings.map((s, i) => `
+        <div class="standing-item ${i === 0 ? 'leader' : ''}">
+          <span class="standing-rank">${i + 1}</span>
+          <span class="standing-name">${s.name}${s.visibleId === session?.visibleId ? ' (you)' : ''}</span>
+          <span class="standing-points">${s.totalPoints} pts</span>
+        </div>
+      `).join('');
+    }
+    
+    elements.nextRoundBtn.addEventListener('click', () => {
+      showOverlay('🎲 Rolling...', 'Next round starting');
+      socket.emit('game:nextRound');
+    });
+    
+    elements.finalResultsBtn.addEventListener('click', () => {
+      showOverlay('🏆 Calculating...', 'Final results');
+      socket.emit('game:viewFinalResults');
+    });
+    
+    // ========================================
+    // GAME OVER SCREEN
+    // ========================================
+    function renderRoundHistory(roundHistory) {
+      if (!roundHistory || roundHistory.length === 0) {
+        elements.roundHistoryList.innerHTML = '<p style="color: var(--wood-light); opacity: 0.6; text-align: center;">No round data</p>';
+        return;
+      }
+      
+      elements.roundHistoryList.innerHTML = roundHistory.map(round => {
+        // Sort results by place (valid words first), then by word score
+        const sortedResults = [...round.results].sort((a, b) => {
+          if (a.place && !b.place) return -1;
+          if (!a.place && b.place) return 1;
+          if (a.place && b.place) return a.place - b.place;
+          return b.score - a.score;
+        });
+        
+        const playersHtml = sortedResults.map(r => {
+          const placeClass = r.place && r.place <= 3 ? `place-${r.place}` : '';
+          const placeEmoji = r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : '  ';
+          
+          // Find this player's running total after this round
+          const standing = round.standings?.find(s => s.visibleId === r.visibleId);
+          const runningTotal = standing?.totalPoints || 0;
+          
+          // Format word display with appropriate class
+          let wordDisplay = r.word || '—';
+          let wordClass = '';
+          if (r.noSubmission) {
+            wordDisplay = 'none';
+            wordClass = 'none';
+          } else if (r.isInvalid) {
+            wordDisplay = r.word;
+            wordClass = 'invalid';
+          }
+          
+          const pointsClass = r.pointsEarned > 0 ? 'earned' : 'zero';
+          const pointsText = r.pointsEarned > 0 ? `+${r.pointsEarned}` : '—';
+          
+          // Truncate name if needed
+          const displayName = r.name.length > 10 ? r.name.substring(0, 9) + '…' : r.name;
+          
+          return `
+            <div class="round-history-row ${placeClass}">
+              <div class="rh-player-info">
+                <span class="rh-place">${placeEmoji}</span>
+                <span class="rh-name" title="${r.name}">${displayName}</span>
+                <span class="rh-word ${wordClass}">${wordDisplay}</span>
+              </div>
+              <div class="rh-scores">
+                <span class="rh-word-score">${r.score}</span>
+                <span class="rh-points-earned ${pointsClass}">${pointsText}</span>
+                <span class="rh-running-total">${runningTotal}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        return `
+          <div class="round-history-item">
+            <div class="round-history-header">
+              <div class="round-history-title-row">
+                <span class="round-history-number">Round ${round.roundNumber}</span>
+                <div class="round-history-meta">
+                  <div class="round-history-letters-label">Letters</div>
+                  <div class="round-history-letters-value">${round.communityLetters}</div>
+                  <div class="round-history-modifier">${round.modifier || ''}</div>
+                </div>
+              </div>
+              <div class="round-history-columns">
+                <div class="rh-col-left">
+                  <span class="rh-col-label">Player & Word</span>
+                </div>
+                <div class="rh-col-right">
+                  <span class="rh-col-label">Score</span>
+                  <span class="rh-col-label">Earned</span>
+                  <span class="rh-col-label">Total</span>
+                </div>
+              </div>
+            </div>
+            <div class="round-history-results">
+              ${playersHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    function showGameOver(data) {
+      hideOverlay();
+      
+      const winner = data.winner;
+      elements.winnerName.textContent = winner.name;
+      elements.winnerPoints.textContent = `${winner.totalPoints} points`;
+      
+      renderStandings(elements.finalStandingsList, data.standings);
+      renderRoundHistory(data.roundHistory);
+      
+      const isHost = currentState?.isHost;
+      elements.playAgainBtn.style.display = isHost ? 'block' : 'none';
+      elements.waitingForPlayAgain.classList.toggle('hidden', isHost);
+      
+      showScreen('gameover');
+    }
+    
+    elements.playAgainBtn.addEventListener('click', () => {
+      socket.emit('game:playAgain');
+    });
+    
+    // ========================================
+    // SOCKET EVENTS
+    // ========================================
+    function initSocket() {
+      socket = io({
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+      });
+      
+      socket.on('connect', () => {
+        console.log('Connected to server');
+        elements.reconnectingBanner.classList.add('hidden');
+        
+        // Try to rejoin if we have a session
+        if (session?.lobbyCode && session?.visibleId) {
+          socket.emit('lobby:join', {
+            code: session.lobbyCode,
+            name: session.name,
+            existingId: session.visibleId,
+          });
+        }
+      });
+      
+      socket.on('disconnect', () => {
+        console.log('Disconnected');
+        elements.reconnectingBanner.classList.remove('hidden');
+      });
+      
+      // Lobby created
+      socket.on('lobby:created', (data) => {
+        saveSession(data.lobbyCode, data.visibleId, data.state.player.name);
+        settingsRounds = data.state.settings.totalRounds;
+        settingsTimer = data.state.settings.timerDuration;
+        updateWaitingRoom(data.state);
+        showScreen('waiting');
+      });
+      
+      // Lobby joined
+      socket.on('lobby:joined', (data) => {
+        saveSession(data.lobbyCode, data.visibleId, data.state.player.name);
+        settingsRounds = data.state.settings.totalRounds;
+        settingsTimer = data.state.settings.timerDuration;
+        updateWaitingRoom(data.state);
+        showScreen('waiting');
+      });
+      
+      // Lobby error
+      socket.on('lobby:error', (data) => {
+        elements.joinError.textContent = data.message;
+        elements.joinError.classList.remove('hidden');
+      });
+      
+      // Players updated
+      socket.on('lobby:playersUpdated', (data) => {
+        if (currentState) {
+          currentState.players = data.players;
+          currentState.settings = data.settings;
+          currentState.isHost = data.players.find(p => p.visibleId === session?.visibleId)?.isHost || false;
+        }
+        
+        // Update UI based on current screen
+        if (!screens.waiting.classList.contains('hidden')) {
+          updateWaitingRoom({
+            ...currentState,
+            lobbyCode: session?.lobbyCode,
+            players: data.players,
+            settings: data.settings,
+            isHost: currentState?.isHost,
+          });
+        }
+        
+        // Update players status in game screen
+        if (!screens.game.classList.contains('hidden')) {
+          updatePlayersStatus(data.players);
+        }
+      });
+      
+      // Settings updated
+      socket.on('lobby:settingsUpdated', (settings) => {
+        settingsRounds = settings.totalRounds;
+        settingsTimer = settings.timerDuration;
+        elements.roundsValue.textContent = settingsRounds;
+        elements.timerValue.textContent = formatTime(settingsTimer);
+        if (currentState) {
+          currentState.settings = settings;
+        }
+      });
+      
+      // Game starting
+      socket.on('game:starting', (data) => {
+        showOverlay('🎲 Starting Game!', `${data.totalRounds} rounds`);
+      });
+      
+      // New round
+      socket.on('game:newRound', (state) => {
+        currentState = state;
+        currentState.isHost = state.player?.isHost || state.isHost;
+        updateGameScreen(state);
+        hideOverlay();
+        showScreen('game');
+      });
+      
+      // Timer update
+      socket.on('game:timerUpdate', (data) => {
+        elements.timerDisplay.textContent = formatTime(data.remaining);
+        
+        if (data.remaining <= 10 && data.remaining > 0) {
+          elements.timerDisplay.classList.add('warning');
+          elements.timerDisplay.classList.remove('expired');
+        } else if (data.remaining === 0) {
+          elements.timerDisplay.classList.remove('warning');
+          elements.timerDisplay.classList.add('expired');
+        } else {
+          elements.timerDisplay.classList.remove('warning', 'expired');
+        }
+      });
+      
+      // Timer halved (first submission)
+      socket.on('game:timerHalved', (data) => {
+        elements.timerDisplay.textContent = formatTime(data.remaining);
+        elements.timerDisplay.classList.add('halved');
+        
+        // Show notice (compact, at top of screen)
+        const notice = document.createElement('div');
+        notice.className = 'timer-halved-notice';
+        notice.innerHTML = `
+          <span class="notice-icon">⚡</span>
+          <span>${data.playerName} submitted — Timer halved!</span>
+        `;
+        document.body.appendChild(notice);
+        
+        // Remove after animation
+        setTimeout(() => {
+          notice.remove();
+          elements.timerDisplay.classList.remove('halved');
+        }, 2000);
+      });
+      
+      // Submit confirmed
+      socket.on('player:submitConfirmed', (data) => {
+        hasSubmitted = true;
+        elements.submissionStatus.textContent = `✓ Submitted: "${data.word}" (${data.score} pts)`;
+        elements.submissionStatus.className = 'submission-status confirmed';
+        elements.submissionStatus.classList.remove('hidden');
+        elements.submitBtn.classList.add('submitted');
+        elements.submitBtnText.textContent = 'Update';
+        elements.submitBtn.disabled = false;
+      });
+      
+      // Submit error
+      socket.on('player:submitError', (data) => {
+        elements.submissionStatus.textContent = `✗ ${data.message}`;
+        elements.submissionStatus.className = 'submission-status';
+        elements.submissionStatus.style.color = '#ef4444';
+        elements.submissionStatus.classList.remove('hidden');
+        elements.submitBtn.disabled = false;
+        elements.submitBtnText.textContent = 'Submit Word';
+      });
+      
+      // Round results
+      socket.on('game:roundResults', (data) => {
+        showResults(data);
+      });
+      
+      // Final results (after all rounds)
+      socket.on('game:finalResults', (data) => {
+        showGameOver(data);
+      });
+      
+      // Return to lobby
+      socket.on('game:returnToLobby', (data) => {
+        // Reset state
+        currentState = null;
+        selectedDice = [];
+        hasSubmitted = false;
+        currentSubmission = null;
+        
+        // Re-fetch state
+        socket.emit('lobby:join', {
+          code: data.lobbyCode,
+          name: session?.name,
+          existingId: session?.visibleId,
+        });
+      });
+      
+      // Game error
+      socket.on('game:error', (data) => {
+        alert(data.message);
+      });
+    }
+    
+    // ========================================
+    // INIT
+    // ========================================
+    function checkUrlForCode() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      
+      if (code && code.length === 4) {
+        // Switch to join tab and pre-fill code
+        elements.joinTab.classList.add('active');
+        elements.createTab.classList.remove('active');
+        elements.joinForm.classList.remove('hidden');
+        elements.createForm.classList.add('hidden');
+        elements.joinCode.value = code.toUpperCase();
+        
+        // Clear the URL parameter without refreshing
+        const url = new URL(window.location.href);
+        url.searchParams.delete('code');
+        window.history.replaceState({}, '', url.pathname);
+        
+        return true;
+      }
+      return false;
+    }
+    
+    function init() {
+      // Pre-fill name if we have a session
+      if (session?.name) {
+        elements.createName.value = session.name;
+        elements.joinName.value = session.name;
+      }
+      
+      // Check if there's a code in the URL
+      checkUrlForCode();
+      
+      initSocket();
+      showScreen('lobby');
+    }
+    
+    init();
+  </script>
+</body>
+</html>

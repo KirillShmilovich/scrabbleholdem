@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scrabble Hold'em</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .home-page {
+      background: linear-gradient(135deg, var(--felt-dark) 0%, var(--felt-medium) 50%, var(--felt-dark) 100%);
+      background-attachment: fixed;
+    }
+    
+    .home-page::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle at 20% 80%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    
+    .home-container {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-xl);
+      position: relative;
+      z-index: 1;
+    }
+    
+    .logo-section {
+      text-align: center;
+      margin-bottom: var(--space-2xl);
+    }
+    
+    .dice-decoration {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .deco-die {
+      width: 70px;
+      height: 70px;
+      background: var(--die-bg);
+      border: 4px solid var(--die-border);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: var(--felt-dark);
+      box-shadow: 
+        0 6px 12px var(--die-shadow),
+        inset 0 2px 4px rgba(255, 255, 255, 0.5);
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    .deco-die:nth-child(1) { transform: rotate(-8deg); }
+    .deco-die:nth-child(2) { animation-delay: 0.3s; }
+    .deco-die:nth-child(3) { transform: rotate(8deg); animation-delay: 0.6s; }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .deco-die:nth-child(1) {
+      animation: float-left 3s ease-in-out infinite;
+    }
+    
+    .deco-die:nth-child(3) {
+      animation: float-right 3s ease-in-out infinite;
+    }
+    
+    @keyframes float-left {
+      0%, 100% { transform: rotate(-8deg) translateY(0); }
+      50% { transform: rotate(-8deg) translateY(-10px); }
+    }
+    
+    @keyframes float-right {
+      0%, 100% { transform: rotate(8deg) translateY(0); }
+      50% { transform: rotate(8deg) translateY(-10px); }
+    }
+    
+    .game-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.5rem, 10vw, 4.5rem);
+      font-weight: 900;
+      line-height: 1.1;
+      color: var(--cream);
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .game-title span {
+      color: var(--gold);
+      display: block;
+    }
+    
+    .tagline {
+      font-size: 1.35rem;
+      font-weight: 300;
+      color: var(--wood-light);
+      letter-spacing: 0.15em;
+      opacity: 0.9;
+    }
+    
+    .play-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-md);
+      padding: var(--space-lg) var(--space-2xl);
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--felt-dark);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+      margin-bottom: var(--space-2xl);
+    }
+    
+    .play-btn:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 10px 30px rgba(212, 175, 55, 0.5);
+    }
+    
+    .play-btn:active {
+      transform: translateY(-1px);
+    }
+    
+    .play-btn .btn-icon {
+      font-size: 1.8rem;
+      animation: shake 0.5s ease-in-out infinite;
+      animation-play-state: paused;
+    }
+    
+    .play-btn:hover .btn-icon {
+      animation-play-state: running;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-15deg); }
+      75% { transform: rotate(15deg); }
+    }
+    
+    /* How to Play */
+    .how-to-play {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 20px;
+      padding: var(--space-xl) var(--space-2xl);
+      max-width: 500px;
+      width: 100%;
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      backdrop-filter: blur(10px);
+    }
+    
+    .how-to-play h2 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      color: var(--gold);
+      margin-bottom: var(--space-lg);
+      text-align: center;
+    }
+    
+    .how-to-play ol {
+      list-style: none;
+      counter-reset: steps;
+    }
+    
+    .how-to-play li {
+      counter-increment: steps;
+      padding: var(--space-sm) 0;
+      padding-left: 2.5rem;
+      position: relative;
+      font-weight: 300;
+      font-size: 1.05rem;
+      line-height: 1.5;
+    }
+    
+    .how-to-play li::before {
+      content: counter(steps);
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 26px;
+      height: 26px;
+      background: var(--gold);
+      color: var(--felt-dark);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    
+    .how-to-play strong {
+      color: var(--gold-light);
+    }
+    
+    /* Points Legend */
+    .points-legend {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-sm);
+      margin-top: var(--space-lg);
+      padding-top: var(--space-lg);
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+    }
+    
+    .points-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 0.85rem;
+    }
+    
+    .points-badge {
+      background: var(--gold);
+      color: var(--felt-dark);
+      font-weight: 700;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+    
+    .points-letters {
+      color: var(--cream);
+      font-weight: 500;
+    }
+    
+    /* Scoring info */
+    .scoring-info {
+      margin-top: var(--space-lg);
+      padding-top: var(--space-lg);
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+      text-align: center;
+    }
+    
+    .scoring-title {
+      font-size: 0.9rem;
+      color: var(--gold);
+      margin-bottom: var(--space-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    
+    .scoring-placements {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-lg);
+    }
+    
+    .placement {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+    
+    .placement-icon {
+      font-size: 1.2rem;
+    }
+    
+    .placement-points {
+      color: var(--cream);
+      font-weight: 600;
+    }
+    
+    @media (max-width: 480px) {
+      .how-to-play {
+        padding: var(--space-lg);
+      }
+      
+      .how-to-play li {
+        font-size: 0.95rem;
+      }
+      
+      .points-legend {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body class="home-page">
+  <div class="home-container">
+    <div class="logo-section">
+      <div class="dice-decoration">
+        <span class="deco-die">S</span>
+        <span class="deco-die">H</span>
+        <span class="deco-die">!</span>
+      </div>
+      <h1 class="game-title">Scrabble<span>Hold'em</span></h1>
+      <p class="tagline">Roll · Spell · Win</p>
+    </div>
+    
+    <a href="/play" class="play-btn">
+      <span class="btn-icon">🎲</span>
+      <span>Play Now</span>
+    </a>
+    
+    <div class="how-to-play">
+      <h2>How to Play</h2>
+      <ol>
+        <li>Create a lobby or join with a <strong>4-letter code</strong></li>
+        <li>Everyone sees <strong>5 community dice</strong> + a modifier</li>
+        <li>You get <strong>3 personal dice</strong> only you can see</li>
+        <li>Form the <strong>highest-scoring word</strong> before time runs out!</li>
+        <li>Top 3 earn points: <strong>🥇 3pts · 🥈 2pts · 🥉 1pt</strong></li>
+        <li>Most points after all rounds wins! 🏆</li>
+      </ol>
+      
+      <div class="scoring-info">
+        <div class="scoring-title">Points Per Round</div>
+        <div class="scoring-placements">
+          <div class="placement">
+            <span class="placement-icon">🥇</span>
+            <span class="placement-points">3 pts</span>
+          </div>
+          <div class="placement">
+            <span class="placement-icon">🥈</span>
+            <span class="placement-points">2 pts</span>
+          </div>
+          <div class="placement">
+            <span class="placement-icon">🥉</span>
+            <span class="placement-points">1 pt</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

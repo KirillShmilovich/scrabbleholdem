@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Board - Scrabble Hold'em</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<style>
+    /* Board-specific styles */
+    .player-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+    }
+    
+    .player-badge .submit-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #6b7280;
+      transition: all 0.3s ease;
+    }
+    
+    .player-badge .submit-indicator.submitted {
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+      animation: pulse-green 1s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
+      50% { box-shadow: 0 0 16px rgba(34, 197, 94, 0.9); }
+    }
+    
+    .reveal-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      padding: var(--space-lg) var(--space-2xl);
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+    
+    .reveal-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+    }
+    
+    .reveal-btn:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    
+    .reveal-btn.revealed {
+      background: #22c55e;
+    }
+    
+    /* Inline Results Section */
+    .results-section {
+      width: 100%;
+      margin-top: var(--space-lg);
+      display: none;
+    }
+    
+    .results-section.visible {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .results-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: var(--space-md);
+    }
+    
+    .result-item {
+      background: rgba(0, 0, 0, 0.3);
+      border: 2px solid rgba(212, 175, 55, 0.3);
+      border-radius: 12px;
+      padding: var(--space-md) var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      min-width: 120px;
+      transition: all 0.3s ease;
+    }
+    
+    .result-item.winner {
+      background: rgba(212, 175, 55, 0.25);
+      border-color: var(--gold);
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+      transform: scale(1.05);
+    }
+    
+    .result-item .result-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--wood-light);
+    }
+    
+    .result-item.winner .result-name {
+      color: var(--gold);
+    }
+    
+    .result-item .result-word {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--cream);
+      letter-spacing: 0.05em;
+    }
+    
+    .result-item.winner .result-word {
+      color: var(--gold-light);
+    }
+    
+    .result-item .result-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--gold);
+    }
+    
+    .result-item .winner-badge {
+      background: var(--gold);
+      color: var(--felt-dark);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 100px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    
+    .result-item .no-submit {
+      color: #6b7280;
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+    
+    /* Larger results on bigger screens */
+    @media (min-width: 768px) {
+      .result-item {
+        min-width: 150px;
+        padding: var(--space-lg) var(--space-xl);
+      }
+      
+      .result-item .result-word {
+        font-size: 2rem;
+      }
+      
+      .result-item .result-score {
+        font-size: 1.3rem;
+      }
+    }
+    
+    @media (min-width: 1024px) {
+      .result-item {
+        min-width: 180px;
+      }
+      
+      .result-item .result-word {
+        font-size: 2.5rem;
+      }
+    }
+    
+    /* Round Commentary Styles */
+    .commentary-section {
+      margin-top: var(--space-xl);
+      text-align: center;
+      display: none;
+    }
+    
+    .commentary-section.visible {
+      display: block;
+    }
+    
+    .commentary-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-md) var(--space-xl);
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      border: none;
+      border-radius: 100px;
+      font-family: var(--font-body);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+    
+    .commentary-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+    }
+    
+    .commentary-btn:disabled {
+      background: #6b7280;
+      cursor: wait;
+      box-shadow: none;
+    }
+    
+    .commentary-display {
+      margin-top: var(--space-xl);
+      padding: var(--space-lg) var(--space-xl);
+      background: linear-gradient(145deg, rgba(139, 92, 246, 0.15), rgba(124, 58, 237, 0.08));
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      border-radius: 12px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+      display: none;
+      text-align: left;
+    }
+    
+    .commentary-display.visible {
+      display: block;
+      animation: commentaryAppear 0.4s ease;
+    }
+    
+    @keyframes commentaryAppear {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    .commentary-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #a78bfa;
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .commentary-text {
+      font-family: var(--font-body);
+      font-size: 1.3rem;
+      line-height: 1.7;
+      color: var(--cream);
+      font-weight: 400;
+    }
+    
+    .commentary-text.loading {
+      text-align: center;
+      color: #a78bfa;
+    }
+    
+    .fun-fact-section {
+      margin-top: var(--space-lg);
+      padding-top: var(--space-lg);
+      border-top: 1px solid rgba(139, 92, 246, 0.3);
+      display: none;
+    }
+    
+    .fun-fact-section.visible {
+      display: block;
+    }
+    
+    .fun-fact-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--gold);
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .fun-fact-text {
+      font-family: var(--font-body);
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: var(--gold-light);
+      font-style: italic;
+    }
+    
+    @media (min-width: 768px) {
+      .commentary-text {
+        font-size: 1.5rem;
+      }
+      .fun-fact-text {
+        font-size: 1.2rem;
+      }
+    }
+    
+    @media (min-width: 1024px) {
+      .commentary-text {
+        font-size: 1.7rem;
+      }
+      .fun-fact-text {
+        font-size: 1.3rem;
+      }
+    }
+    
+    /* Timer announcement overlay */
+    .timer-announcement {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.5);
+      font-family: var(--font-display);
+      font-size: 6rem;
+      font-weight: 900;
+      color: var(--gold);
+      text-shadow: 0 0 40px rgba(212, 175, 55, 0.8);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 500;
+      transition: all 0.3s ease;
+    }
+    
+    .timer-announcement.visible {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    
+    .timer-announcement.warning {
+      color: #f97316;
+      text-shadow: 0 0 40px rgba(249, 115, 22, 0.8);
+    }
+    
+    .timer-announcement.critical {
+      color: #ef4444;
+      text-shadow: 0 0 40px rgba(239, 68, 68, 0.8);
+      animation: shake 0.1s ease infinite;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(0); }
+      25% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); }
+      75% { transform: translate(-50%, -50%) scale(1) rotate(2deg); }
+    }
+  </style>
+<body class="board-page">
+  <div class="board-container">
+    <header class="board-header">
+      <h1 class="board-title">Scrabble Hold'em</h1>
+      <div class="header-right">
+        <div class="timer-display" id="timerDisplay">
+          <span class="timer-value" id="timerValue">1:15</span>
+        </div>
+        <div class="round-badge">Round <span id="roundNumber">1</span></div>
+      </div>
+    </header>
+    
+    <main class="board-main">
+      <section class="community-section">
+        <h2 class="section-title">Community Dice</h2>
+        <div class="dice-row community-dice" id="communityDice">
+          <!-- Dice will be inserted here -->
+        </div>
+        <div class="modifier-legend" id="modifierLegend">
+          <!-- Modifier explanation will be inserted here -->
+        </div>
+      </section>
+      
+      <section class="players-section">
+        <h2 class="section-title">Players</h2>
+        <div class="players-list" id="playersList">
+          <p class="no-players">Waiting for players to join...</p>
+        </div>
+        
+        <!-- Inline Results (shown after reveal) -->
+        <div class="results-section" id="resultsSection">
+          <div class="results-row" id="resultsRow">
+            <!-- Results will be inserted here -->
+          </div>
+          
+          <!-- Round Commentary Section -->
+          <div class="commentary-section" id="commentarySection">
+            <div class="commentary-display" id="commentaryDisplay">
+              <div class="commentary-label">🎙️ Round Commentary</div>
+              <div class="commentary-text" id="commentaryText"></div>
+              
+              <div class="fun-fact-section" id="funFactSection">
+                <div class="fun-fact-label">💡 Fun Fact</div>
+                <div class="fun-fact-text" id="funFactText"></div>
+              </div>
+            </div>
+            
+            <button class="commentary-btn" id="commentaryBtn" style="display: none;">
+              <span>🎙️</span>
+              <span id="commentaryBtnText">🔄 Get Another Take</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+    
+    <footer class="board-footer">
+      <div class="timer-controls">
+        <button class="timer-btn" id="timerDownBtn">−15s</button>
+        <span class="timer-setting" id="timerSetting">1:15</span>
+        <button class="timer-btn" id="timerUpBtn">+15s</button>
+      </div>
+      <button class="reveal-btn" id="revealBtn">
+        <span>👁️</span>
+        Reveal Words
+      </button>
+      <button class="new-round-btn" id="newRoundBtn">
+        <span class="btn-dice">🎲</span>
+        New Round
+      </button>
+    </footer>
+    
+  </div>
+  
+  <div class="animation-overlay" id="animationOverlay">
+    <div class="rolling-text">🎲 Rolling...</div>
+  </div>
+  
+  <div class="timer-announcement" id="timerAnnouncement"></div>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    
+    // Timer configuration (in seconds)
+    let timerDuration = 75; // 1:15 default
+    let timerRemaining = timerDuration;
+    let timerInterval = null;
+    
+    // DOM Elements
+    const communityDiceEl = document.getElementById('communityDice');
+    const modifierLegendEl = document.getElementById('modifierLegend');
+    const playersListEl = document.getElementById('playersList');
+    const roundNumberEl = document.getElementById('roundNumber');
+    const newRoundBtn = document.getElementById('newRoundBtn');
+    const animationOverlay = document.getElementById('animationOverlay');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerValue = document.getElementById('timerValue');
+    const timerSetting = document.getElementById('timerSetting');
+    const timerDownBtn = document.getElementById('timerDownBtn');
+    const timerUpBtn = document.getElementById('timerUpBtn');
+    const revealBtn = document.getElementById('revealBtn');
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsRow = document.getElementById('resultsRow');
+    const timerAnnouncement = document.getElementById('timerAnnouncement');
+    const commentarySection = document.getElementById('commentarySection');
+    const commentaryBtn = document.getElementById('commentaryBtn');
+    const commentaryBtnText = document.getElementById('commentaryBtnText');
+    const commentaryDisplay = document.getElementById('commentaryDisplay');
+    const commentaryText = document.getElementById('commentaryText');
+    const funFactSection = document.getElementById('funFactSection');
+    const funFactText = document.getElementById('funFactText');
+    
+    // Store full game state for commentary
+    let revealedGameState = null;
+    
+    // Submission state
+    let submissionStatus = {}; // visibleId -> { hasSubmitted: bool }
+    let isRevealed = false;
+    
+    // Audio context for sounds
+    let audioContext = null;
+    function getAudioContext() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      return audioContext;
+    }
+    
+    // Play a beep sound
+    function playBeep(frequency = 800, duration = 0.15, type = 'sine') {
+      try {
+        const ctx = getAudioContext();
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        oscillator.frequency.value = frequency;
+        oscillator.type = type;
+        
+        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+        
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + duration);
+      } catch (e) {
+        console.log('Audio not supported');
+      }
+    }
+    
+    // Play timer end sound (distinctive ding)
+    function playTimerEnd() {
+      playBeep(1200, 0.1, 'sine');
+      setTimeout(() => playBeep(1400, 0.1, 'sine'), 100);
+      setTimeout(() => playBeep(1600, 0.2, 'sine'), 200);
+    }
+    
+    // Connect as board
+    socket.emit('board:connect');
+    
+    // Format time as M:SS
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    // Update timer display
+    function updateTimerDisplay() {
+      timerValue.textContent = formatTime(timerRemaining);
+      timerSetting.textContent = formatTime(timerDuration);
+      
+      // Visual feedback when low
+      if (timerRemaining <= 10 && timerRemaining > 0) {
+        timerDisplay.classList.add('warning');
+      } else if (timerRemaining === 0) {
+        timerDisplay.classList.add('expired');
+        timerDisplay.classList.remove('warning');
+      } else {
+        timerDisplay.classList.remove('warning', 'expired');
+      }
+    }
+    
+    // Show timer announcement
+    function showAnnouncement(text, className = '') {
+      timerAnnouncement.textContent = text;
+      timerAnnouncement.className = 'timer-announcement visible ' + className;
+      
+      setTimeout(() => {
+        timerAnnouncement.classList.remove('visible');
+      }, 800);
+    }
+    
+    // Start timer
+    function startTimer() {
+      stopTimer();
+      timerRemaining = timerDuration;
+      timerDisplay.classList.remove('warning', 'expired');
+      timerDisplay.classList.add('running');
+      updateTimerDisplay();
+      
+      timerInterval = setInterval(() => {
+        timerRemaining--;
+        updateTimerDisplay();
+        
+        // Timer announcements
+        if (timerRemaining === 30) {
+          showAnnouncement('30', 'warning');
+          playBeep(600, 0.2);
+        } else if (timerRemaining === 15) {
+          showAnnouncement('15', 'warning');
+          playBeep(700, 0.2);
+        } else if (timerRemaining === 10) {
+          showAnnouncement('10', 'warning');
+          playBeep(800, 0.2);
+        } else if (timerRemaining <= 5 && timerRemaining > 0) {
+          showAnnouncement(timerRemaining.toString(), 'critical');
+          playBeep(900 + (5 - timerRemaining) * 50, 0.15);
+        } else if (timerRemaining === 0) {
+          showAnnouncement("⏰ TIME!", 'critical');
+          playTimerEnd();
+        }
+        
+        if (timerRemaining <= 0) {
+          stopTimer();
+          timerDisplay.classList.add('expired');
+        }
+      }, 1000);
+    }
+    
+    // Stop timer
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      timerDisplay.classList.remove('running');
+    }
+    
+    // Timer controls
+    timerDownBtn.addEventListener('click', () => {
+      timerDuration = Math.max(15, timerDuration - 15);
+      updateTimerDisplay();
+    });
+    
+    timerUpBtn.addEventListener('click', () => {
+      timerDuration = Math.min(300, timerDuration + 15);
+      updateTimerDisplay();
+    });
+    
+    // Render a single die with optional modifier
+    function renderDie(die, index, modifier, delay = 0) {
+      const hasModifier = modifier && modifier.dieIndex === index;
+      const modifierClass = hasModifier ? 'has-modifier' : '';
+      const modifierStyle = hasModifier ? `--modifier-color: ${modifier.color}` : '';
+      
+      return `
+        <div class="die-wrapper">
+          <div class="die ${modifierClass}" style="animation-delay: ${delay}ms; ${modifierStyle}">
+            <span class="die-letter">${die.letter}</span>
+            <span class="die-points">${die.points}</span>
+            ${hasModifier ? `<span class="die-modifier">${modifier.shortName}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Render modifier legend
+    function renderModifierLegend(modifier) {
+      if (!modifier) return '';
+      
+      return `
+        <div class="modifier-info" style="--modifier-color: ${modifier.color}">
+          <span class="modifier-badge-small">${modifier.shortName}</span>
+          <span class="modifier-text"><strong>${modifier.name}</strong> — ${modifier.desc}</span>
+        </div>
+      `;
+    }
+    
+    // Update board state
+    function updateBoard(state) {
+      roundNumberEl.textContent = state.roundNumber;
+      
+      // Store submission status
+      if (state.submissions) {
+        submissionStatus = state.submissions;
+      }
+      
+      // Update revealed state
+      if (state.revealed !== undefined) {
+        isRevealed = state.revealed;
+        updateRevealButton();
+      }
+      
+      // Render community dice with modifier attached
+      communityDiceEl.innerHTML = state.communityDice
+        .map((die, i) => renderDie(die, i, state.modifier, i * 100))
+        .join('');
+      
+      // Render modifier legend
+      modifierLegendEl.innerHTML = renderModifierLegend(state.modifier);
+      
+      // Render players with submission indicators
+      renderPlayers(state.players);
+    }
+    
+    // Render players with submission status
+    function renderPlayers(players) {
+      if (players.length === 0) {
+        playersListEl.innerHTML = '<p class="no-players">Waiting for players to join...</p>';
+      } else {
+        playersListEl.innerHTML = players
+          .map(p => {
+            const status = submissionStatus[p.visibleId];
+            const hasSubmitted = status?.hasSubmitted || false;
+            return `
+              <div class="player-badge">
+                <span class="submit-indicator ${hasSubmitted ? 'submitted' : ''}"></span>
+                ${p.name}
+              </div>
+            `;
+          })
+          .join('');
+      }
+    }
+    
+    // Update reveal button state
+    function updateRevealButton() {
+      if (isRevealed) {
+        revealBtn.disabled = true;
+        revealBtn.classList.add('revealed');
+        revealBtn.innerHTML = '<span>✓</span> Revealed';
+      } else {
+        revealBtn.disabled = false;
+        revealBtn.classList.remove('revealed');
+        revealBtn.innerHTML = '<span>👁️</span> Reveal Words';
+      }
+    }
+    
+    // Show inline results
+    function showResults(data) {
+      const { submissions, winners } = data;
+      
+      // Find the highest score to determine winner(s)
+      const validSubmissions = submissions.filter(s => s.isValid);
+      const highestScore = validSubmissions.length > 0 ? Math.max(...validSubmissions.map(s => s.score)) : 0;
+      
+      // Store full game state for commentary (will be populated by socket event)
+      // revealedGameState is set in the socket handler
+      
+      if (submissions.length === 0) {
+        resultsRow.innerHTML = '<p style="color: var(--wood-light); opacity: 0.7; font-style: italic;">No words submitted</p>';
+      } else {
+        resultsRow.innerHTML = submissions.map(sub => {
+          const isWinner = sub.isValid && sub.score === highestScore;
+          
+          return `
+            <div class="result-item ${isWinner ? 'winner' : ''}">
+              <span class="result-name">${sub.name}</span>
+              <span class="result-word">${sub.word || '—'}</span>
+              <span class="result-score">${sub.score} pts</span>
+              ${isWinner ? '<span class="winner-badge">🏆 Winner</span>' : ''}
+            </div>
+          `;
+        }).join('');
+      }
+      
+      resultsSection.classList.add('visible');
+      
+      // Auto-generate commentary if we have submissions
+      if (submissions.length > 0) {
+        commentarySection.classList.add('visible');
+        // Start loading immediately
+        commentaryText.textContent = '🎙️ Generating commentary...';
+        commentaryDisplay.classList.add('visible');
+        commentaryBtn.style.display = 'none';
+        // Auto-generate
+        generateCommentary();
+      } else {
+        commentarySection.classList.remove('visible');
+      }
+      
+      isRevealed = true;
+      updateRevealButton();
+    }
+    
+    // Hide results
+    function hideResults() {
+      resultsSection.classList.remove('visible');
+      commentarySection.classList.remove('visible');
+      commentaryDisplay.classList.remove('visible');
+      funFactSection.classList.remove('visible');
+      commentaryBtn.style.display = 'none';
+      revealedGameState = null;
+    }
+    
+    // Generate round commentary
+    async function generateCommentary() {
+      if (!revealedGameState) return;
+      
+      // Show loading state
+      commentaryText.textContent = 'Generating commentary...';
+      commentaryText.classList.add('loading');
+      commentaryDisplay.classList.add('visible');
+      funFactSection.classList.remove('visible');
+      commentaryBtn.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/commentary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gameState: revealedGameState })
+        });
+        
+        const result = await response.json();
+        console.log('Commentary result:', result);
+        
+        commentaryText.classList.remove('loading');
+        
+        if (result.error || !result.commentary) {
+          commentaryText.textContent = result.error || 'Empty response. Try again!';
+          funFactSection.classList.remove('visible');
+        } else {
+          commentaryText.textContent = result.commentary;
+          
+          // Show fun fact if available
+          if (result.funFact) {
+            funFactText.textContent = result.funFact;
+            funFactSection.classList.add('visible');
+          } else {
+            funFactSection.classList.remove('visible');
+          }
+        }
+        
+        // Show the "Get Another Take" button
+        commentaryBtn.style.display = 'inline-flex';
+        commentaryBtn.disabled = false;
+        
+      } catch (err) {
+        console.error('Commentary generation error:', err);
+        commentaryText.classList.remove('loading');
+        commentaryText.textContent = 'Error generating commentary. Try again!';
+        funFactSection.classList.remove('visible');
+        commentaryBtn.style.display = 'inline-flex';
+        commentaryBtn.disabled = false;
+      }
+    }
+    
+    // Commentary button click
+    commentaryBtn.addEventListener('click', generateCommentary);
+    
+    // Handle board state update
+    socket.on('board:state', (state) => {
+      console.log('Board state received:', state.roundNumber, 'Dice:', state.communityDice.map(d => d.letter).join(','));
+      updateBoard(state);
+      
+      // Hide overlay and start timer when we get new state
+      setTimeout(() => {
+        animationOverlay.classList.remove('active');
+        startTimer();
+      }, 500);
+    });
+    
+    // Handle player list update
+    socket.on('game:players', (players) => {
+      renderPlayers(players);
+    });
+    
+    // Handle submission update
+    socket.on('game:submissionUpdate', (data) => {
+      console.log('Submission update:', data);
+      submissionStatus[data.visibleId] = { hasSubmitted: data.hasSubmitted };
+      
+      // Re-render players to update indicator
+      const badges = document.querySelectorAll('.player-badge');
+      badges.forEach(badge => {
+        if (badge.textContent.includes(data.name)) {
+          const indicator = badge.querySelector('.submit-indicator');
+          if (indicator) {
+            indicator.classList.toggle('submitted', data.hasSubmitted);
+          }
+        }
+      });
+    });
+    
+    // Handle words revealed
+    socket.on('game:wordsRevealed', (data) => {
+      console.log('Words revealed:', data);
+      // Store full game state for commentary
+      if (data.fullGameState) {
+        revealedGameState = data.fullGameState;
+      }
+      showResults(data);
+    });
+    
+    // New round button
+    let isRolling = false;
+    newRoundBtn.addEventListener('click', () => {
+      if (isRolling) return; // Prevent double-clicks
+      
+      isRolling = true;
+      animationOverlay.classList.add('active');
+      socket.emit('board:newRound');
+      
+      // Reset submission state
+      submissionStatus = {};
+      isRevealed = false;
+      updateRevealButton();
+      hideResults();
+      
+      // Reset the rolling lock after a delay
+      setTimeout(() => {
+        isRolling = false;
+      }, 1000);
+      
+      // Fallback to hide overlay if something goes wrong
+      setTimeout(() => {
+        animationOverlay.classList.remove('active');
+      }, 3000);
+    });
+    
+    // Reveal button
+    revealBtn.addEventListener('click', () => {
+      if (isRevealed) return;
+      socket.emit('board:revealWords');
+    });
+    
+    // Initialize timer display
+    updateTimerDisplay();
+    updateRevealButton();
+  </script>
+</body>
+</html>
