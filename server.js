@@ -696,6 +696,21 @@ io.on('connection', (socket) => {
     if (existingId && lobby.players.has(existingId)) {
       player = lobby.players.get(existingId);
       console.log(`Player returning to lobby ${code}: ${player.name}`);
+      
+      // Clear any pending removal timeout
+      if (player.removeTimeout) {
+        clearTimeout(player.removeTimeout);
+        player.removeTimeout = null;
+      }
+      
+      // Clear any pending host transfer timeout
+      if (player.hostTransferTimeout) {
+        clearTimeout(player.hostTransferTimeout);
+        player.hostTransferTimeout = null;
+      }
+      
+      // Clear disconnected timestamp
+      player.disconnectedAt = null;
     } else {
       // New player
       visibleId = generatePlayerId();
@@ -957,35 +972,69 @@ io.on('connection', (socket) => {
         // Remove socket mapping but keep player data for reconnection
         lobby.playerSockets.delete(socket.visibleId);
         
+        // Mark player as disconnected (but don't remove them yet)
+        player.disconnectedAt = Date.now();
+        
         // Update player list to show disconnected status
         broadcastPlayerList(lobby);
         
-        // If host disconnects and game is waiting, assign new host
-        if (player.isHost && lobby.status === 'waiting' && lobby.players.size > 1) {
-          player.isHost = false;
-          // Find first connected player to be new host
-          for (const [visId, p] of lobby.players) {
-            if (lobby.playerSockets.has(visId)) {
-              p.isHost = true;
-              console.log(`New host for lobby ${lobby.code}: ${p.name}`);
-              break;
-            }
+        // If host disconnects, wait 30 seconds before reassigning
+        if (player.isHost && lobby.status === 'waiting') {
+          console.log(`Host ${player.name} disconnected. Waiting 30s before reassigning...`);
+          
+          // Clear any existing host transfer timeout
+          if (player.hostTransferTimeout) {
+            clearTimeout(player.hostTransferTimeout);
           }
-          broadcastPlayerList(lobby);
+          
+          player.hostTransferTimeout = setTimeout(() => {
+            // Check if host is still disconnected
+            if (!lobby.playerSockets.has(socket.visibleId) && player.isHost) {
+              // Find a connected player to be new host
+              for (const [visId, p] of lobby.players) {
+                if (lobby.playerSockets.has(visId) && visId !== socket.visibleId) {
+                  player.isHost = false;
+                  p.isHost = true;
+                  console.log(`New host for lobby ${lobby.code}: ${p.name}`);
+                  broadcastPlayerList(lobby);
+                  break;
+                }
+              }
+            }
+          }, 30 * 1000); // 30 seconds
         }
         
-        // Schedule lobby deletion if empty (with 5 minute grace period)
+        // Schedule player removal after 2 minutes of being disconnected
+        if (player.removeTimeout) {
+          clearTimeout(player.removeTimeout);
+        }
+        
+        player.removeTimeout = setTimeout(() => {
+          const currentLobby = lobbies.get(lobby.code);
+          if (currentLobby && !currentLobby.playerSockets.has(socket.visibleId)) {
+            // Player still disconnected, remove them
+            console.log(`Removing ${player.name} from lobby ${lobby.code} (disconnected for 2 min)`);
+            currentLobby.players.delete(socket.visibleId);
+            broadcastPlayerList(currentLobby);
+            
+            // If lobby is now empty, schedule deletion
+            if (currentLobby.players.size === 0) {
+              stopTimer(currentLobby);
+              lobbies.delete(lobby.code);
+              console.log(`Lobby ${lobby.code} deleted (no players)`);
+            }
+          }
+        }, 2 * 60 * 1000); // 2 minutes
+        
+        // Schedule lobby deletion if no connected players (with 5 minute grace period)
         if (lobby.playerSockets.size === 0) {
-          // Clear any existing delete timeout
           if (lobby.deleteTimeout) {
             clearTimeout(lobby.deleteTimeout);
           }
           
-          console.log(`Lobby ${lobby.code} is empty. Will delete in 5 minutes if no one rejoins.`);
+          console.log(`Lobby ${lobby.code} has no connected players. Will delete in 5 minutes if no one rejoins.`);
           
-          // Delete after 5 minutes if still empty
           lobby.deleteTimeout = setTimeout(() => {
-            // Double-check lobby still exists and is still empty
             const currentLobby = lobbies.get(lobby.code);
             if (currentLobby && currentLobby.playerSockets.size === 0) {
               stopTimer(currentLobby);
@@ -1002,14 +1051,20 @@ io.on('connection', (socket) => {
 
 // Broadcast updated player list to all in lobby
 function broadcastPlayerList(lobby) {
-  const players = Array.from(lobby.players.values()).map(p => ({
-    visibleId: p.visibleId,
-    name: p.name,
-    totalPoints: p.totalPoints,
-    isHost: p.isHost,
-    hasSubmitted: lobby.playerSubmissions.has(p.visibleId),
-    isConnected: lobby.playerSockets.has(p.visibleId),
-  }));
+  const players = Array.from(lobby.players.values()).map(p => {
+    const isConnected = lobby.playerSockets.has(p.visibleId);
+    const isReconnecting = !isConnected && p.disconnectedAt && (Date.now() - p.disconnectedAt < 30000);
+    
+    return {
+      visibleId: p.visibleId,
+      name: p.name,
+      totalPoints: p.totalPoints,
+      isHost: p.isHost,
+      hasSubmitted: lobby.playerSubmissions.has(p.visibleId),
+      isConnected,
+      isReconnecting, // True for first 30 seconds after disconnect
+    };
+  });
   
   broadcastToLobby(lobby, 'lobby:playersUpdated', { 
     players,

@@ -275,6 +275,28 @@
       background: rgba(212, 175, 55, 0.1);
     }
     
+    .waiting-player.reconnecting {
+      opacity: 0.6;
+      border-style: dashed;
+    }
+    
+    .waiting-player.disconnected {
+      opacity: 0.4;
+      border-style: dashed;
+      border-color: #6b7280;
+    }
+    
+    .reconnecting-indicator {
+      font-size: 0.7rem;
+      color: #f97316;
+      animation: blink 1s infinite;
+    }
+    
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0.3; }
+    }
+    
     .waiting-player-name {
       font-weight: 600;
       color: var(--cream);
@@ -857,6 +879,16 @@
     
     .player-status-dot.submitted {
       background: #22c55e;
+    }
+    
+    .player-status-dot.reconnecting {
+      background: #f97316;
+      animation: blink 1s infinite;
+    }
+    
+    .player-status-dot.offline {
+      background: #6b7280;
+      opacity: 0.5;
     }
     
     /* ========================================
@@ -1871,15 +1903,22 @@
       elements.playerCount.textContent = state.players.length;
       
       // Render players
-      elements.waitingPlayersList.innerHTML = state.players.map(p => `
-        <div class="waiting-player ${p.isHost ? 'host' : ''}">
-          <span class="waiting-player-name">${p.name}</span>
-          <div>
-            ${p.isHost ? '<span class="waiting-player-badge">Host</span>' : ''}
-            ${p.visibleId === session?.visibleId ? '<span class="waiting-player-badge you">You</span>' : ''}
+      elements.waitingPlayersList.innerHTML = state.players.map(p => {
+        const connectionClass = p.isReconnecting ? 'reconnecting' : (!p.isConnected ? 'disconnected' : '');
+        const hostClass = p.isHost ? 'host' : '';
+        
+        return `
+          <div class="waiting-player ${hostClass} ${connectionClass}">
+            <span class="waiting-player-name">${p.name}</span>
+            <div>
+              ${p.isReconnecting ? '<span class="reconnecting-indicator">reconnecting...</span>' : ''}
+              ${!p.isConnected && !p.isReconnecting ? '<span class="reconnecting-indicator" style="color: #6b7280;">offline</span>' : ''}
+              ${p.isHost ? '<span class="waiting-player-badge">Host</span>' : ''}
+              ${p.visibleId === session?.visibleId ? '<span class="waiting-player-badge you">You</span>' : ''}
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
       
       // Show/hide host controls
       const isHost = state.isHost;
@@ -2302,12 +2341,25 @@
     }
     
     function updatePlayersStatus(players) {
-      elements.playersStatusList.innerHTML = players.map(p => `
-        <div class="player-status-item">
-          <span class="player-status-dot ${p.hasSubmitted ? 'submitted' : ''}"></span>
-          <span>${p.name}</span>
-        </div>
-      `).join('');
+      elements.playersStatusList.innerHTML = players.map(p => {
+        let statusClass = p.hasSubmitted ? 'submitted' : '';
+        let statusText = p.name;
+        
+        if (p.isReconnecting) {
+          statusClass = 'reconnecting';
+          statusText = `${p.name} ⟳`;
+        } else if (!p.isConnected) {
+          statusClass = 'offline';
+          statusText = `${p.name} (offline)`;
+        }
+        
+        return `
+          <div class="player-status-item">
+            <span class="player-status-dot ${statusClass}"></span>
+            <span>${statusText}</span>
+          </div>
+        `;
+      }).join('');
     }
     
     elements.clearBtn.addEventListener('click', () => {
