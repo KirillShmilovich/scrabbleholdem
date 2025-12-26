@@ -287,6 +287,7 @@ function createLobby(hostSocketId, hostName) {
     timerHalved: false, // Has first submission halved the timer this round?
     revealed: false,
     roundHistory: [], // Array of round results for end-game summary
+    deleteTimeout: null, // Timeout for deleting empty lobby
   };
   
   // Add host as first player
@@ -714,6 +715,13 @@ io.on('connection', (socket) => {
     socket.visibleId = visibleId;
     socket.lobbyCode = code.toUpperCase();
     
+    // Cancel any pending lobby deletion since someone joined
+    if (lobby.deleteTimeout) {
+      clearTimeout(lobby.deleteTimeout);
+      lobby.deleteTimeout = null;
+      console.log(`Lobby ${lobby.code} deletion cancelled - player joined`);
+    }
+    
     // Send state to joining player
     socket.emit('lobby:joined', {
       lobbyCode: lobby.code,
@@ -949,6 +957,9 @@ io.on('connection', (socket) => {
         // Remove socket mapping but keep player data for reconnection
         lobby.playerSockets.delete(socket.visibleId);
         
+        // Update player list to show disconnected status
+        broadcastPlayerList(lobby);
+        
         // If host disconnects and game is waiting, assign new host
         if (player.isHost && lobby.status === 'waiting' && lobby.players.size > 1) {
           player.isHost = false;
@@ -963,11 +974,25 @@ io.on('connection', (socket) => {
           broadcastPlayerList(lobby);
         }
         
-        // Clean up empty lobbies
+        // Schedule lobby deletion if empty (with 5 minute grace period)
         if (lobby.playerSockets.size === 0) {
-          stopTimer(lobby);
-          lobbies.delete(lobby.code);
-          console.log(`Lobby ${lobby.code} deleted (empty)`);
+          // Clear any existing delete timeout
+          if (lobby.deleteTimeout) {
+            clearTimeout(lobby.deleteTimeout);
+          }
+          
+          console.log(`Lobby ${lobby.code} is empty. Will delete in 5 minutes if no one rejoins.`);
+          
+          // Delete after 5 minutes if still empty
+          lobby.deleteTimeout = setTimeout(() => {
+            // Double-check lobby still exists and is still empty
+            const currentLobby = lobbies.get(lobby.code);
+            if (currentLobby && currentLobby.playerSockets.size === 0) {
+              stopTimer(currentLobby);
+              lobbies.delete(lobby.code);
+              console.log(`Lobby ${lobby.code} deleted (empty for 5 minutes)`);
+            }
+          }, 5 * 60 * 1000); // 5 minutes
         }
       }
     }
