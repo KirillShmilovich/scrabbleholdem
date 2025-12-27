@@ -413,11 +413,16 @@
       opacity: 0.8;
     }
     
+    /* End Game Section */
+    .end-game-section {
+      text-align: center;
+      margin-top: var(--space-lg);
+      padding-top: var(--space-md);
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
     /* End Game / Leave Button */
     .end-game-btn {
-      position: absolute;
-      top: var(--space-md);
-      right: var(--space-md);
       padding: var(--space-xs) var(--space-md);
       background: rgba(239, 68, 68, 0.15);
       border: 1px solid rgba(239, 68, 68, 0.5);
@@ -428,7 +433,6 @@
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
-      z-index: 50;
     }
     
     .end-game-btn:hover {
@@ -1666,9 +1670,6 @@
        GAME SCREEN
        ======================================== -->
   <div class="screen game-screen hidden" id="gameScreen">
-    <!-- End Game Button (host only) -->
-    <button class="end-game-btn hidden" id="endGameBtn">✕ End Game</button>
-    
     <header class="game-header">
       <div class="round-info">
         <div class="round-number">Round <span id="roundNumber">1</span> of <span id="totalRounds">10</span></div>
@@ -1737,6 +1738,11 @@
           <!-- Player status items -->
         </div>
       </div>
+
+      <!-- End Game Button (host only, at bottom) -->
+      <div class="end-game-section">
+        <button class="end-game-btn hidden" id="endGameBtn">✕ End Game</button>
+      </div>
     </main>
   </div>
 
@@ -1744,12 +1750,10 @@
        RESULTS SCREEN
        ======================================== -->
   <div class="screen results-screen hidden" id="resultsScreen">
-    <!-- End Game Button (host only) -->
-    <button class="end-game-btn hidden" id="endGameBtnResults">✕ End Game</button>
-    
     <div class="results-header">
       <h2 class="results-title">Round <span id="resultsRoundNumber">1</span> Results</h2>
       <p class="results-subtitle">Round <span id="resultsCurrentRound">1</span> of <span id="resultsTotalRounds">10</span></p>
+      <button class="end-game-btn hidden" id="endGameBtnResults">✕ End Game</button>
     </div>
     
     <div class="round-results" id="roundResults">
