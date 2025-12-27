@@ -639,9 +639,9 @@ function calculatePlacements(lobby) {
 async function generateFunFact(words) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey || words.length === 0) return null;
-  
+
   const wordsList = words.map(w => w.toUpperCase()).join(', ');
-  
+
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -657,26 +657,30 @@ async function generateFunFact(words) {
           {
             role: 'system',
             content:
-              'You generate witty, genuinely interesting facts for an adult word game audience. ' +
-              'Given a list of words players used, find a clever connection or share a fascinating tidbit.\n\n' +
-              'Guidelines:\n' +
-              '- Be genuinely interesting—the kind of fact you\'d share at a dinner party\n' +
-              '- Historical oddities, etymology surprises, pop culture connections, scientific quirks all work\n' +
-              '- Dry wit > cutesy humor. Smart > silly.\n' +
-              '- If words seem unrelated, find an unexpected link—the more surprising, the better\n' +
-              '- Keep it tight: 1-2 punchy sentences\n' +
-              '- Be accurate—no made-up facts\n' +
-              '- If only one word, share something genuinely surprising about it\n\n' +
-              'Reply with ONLY the fact, no labels or prefixes.'
+              'You write a single fun fact or witty observation for a Scrabble-style word game, shown to players after each round.\n\n' +
+              'CONTEXT:\n' +
+              '- Players submitted valid Scrabble words (may include obscure ones like QI, XI, ZA, KOS, AA)\n' +
+              '- Many Scrabble words are plurals (KOS = plural of KO), verb forms, or technical jargon\n' +
+              '- Your job is to entertain the players with something clever about their words\n\n' +
+              'YOUR TASK:\n' +
+              '1. First, consider what each word means (if obscure, it\'s probably a Scrabble-specific word)\n' +
+              '2. Look for a creative connection between the words—a theme, a joke, a "what if" scenario\n' +
+              '3. If you find a genuine interesting fact that connects them, share it\n' +
+              '4. If no real connection exists, be playful: make a pun, a silly scenario, or a fake movie pitch using the words\n' +
+              '5. NEVER invent fake etymology or historical "facts"—humor is better than misinformation\n\n' +
+              'OUTPUT: One or two sentences max. Be clever, not verbose. No labels or prefixes.'
           },
           {
             role: 'user',
-            content: `Words played: ${wordsList}\n\nShare a genuinely interesting fact:`
+            content:
+              `Words played this round: ${wordsList}\n\n` +
+              'Write a fun fact or witty observation that incorporates these words. ' +
+              'If they\'re random Scrabble words, get creative with a joke or scenario instead of making up facts.'
           }
         ],
-        reasoning: { enabled: false },
-        max_tokens: 200,
-        temperature: 0.8
+        reasoning: { enabled: true },
+        max_tokens: 1000,
+        temperature: 0.7
       })
     });
     
