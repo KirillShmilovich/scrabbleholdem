@@ -8,15 +8,23 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy for Render/Heroku deployments
+app.set('trust proxy', 1);
+
 // Configure Socket.IO for production (handles proxies like Render)
 const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
   },
-  transports: ['websocket', 'polling'],
-  pingTimeout: 60000,
-  pingInterval: 25000,
+  // Use polling only - more reliable behind reverse proxies like Render
+  transports: ['polling'],
+  allowEIO3: true,
+  pingTimeout: 120000,
+  pingInterval: 30000,
+  upgradeTimeout: 30000,
+  // Allow upgrades to websocket after initial polling connection
+  allowUpgrades: true,
 });
 
 // Serve static files

@@ -2718,6 +2718,10 @@
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
+        // Use polling for reliable connections behind reverse proxies (Render, Heroku)
+        transports: ['polling'],
+        // Allow upgrade to websocket after connection established
+        upgrade: true,
       });
       
       socket.on('connect', () => {
