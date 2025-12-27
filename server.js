@@ -687,7 +687,7 @@ async function generateFunFact(words) {
           }
         ],
         reasoning: { enabled: false },
-        max_tokens: 150,
+        max_tokens: 120,
         temperature: 0.4
       })
     });
