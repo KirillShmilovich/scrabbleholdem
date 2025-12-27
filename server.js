@@ -643,6 +643,10 @@ async function generateFunFact(words) {
   const wordsList = words.map(w => w.toUpperCase()).join(', ');
 
   try {
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -651,8 +655,9 @@ async function generateFunFact(words) {
         'HTTP-Referer': 'http://localhost:3000',
         'X-Title': 'Scrabble Holdem'
       },
+      signal: controller.signal,
       body: JSON.stringify({
-        model: 'nvidia/nemotron-3-nano-30b-a3b:free',
+        model: 'nvidia/nemotron-3-nano-30b-a3b:free', // xiaomi/mimo-v2-flash:free, nvidia/nemotron-3-nano-30b-a3b:free
         messages: [
           {
             role: 'system',
@@ -682,20 +687,30 @@ async function generateFunFact(words) {
           }
         ],
         reasoning: { enabled: true },
-        max_tokens: 1000,
-        temperature: 0.7
+        max_tokens: 10000,
+        temperature: 0.5
       })
     });
-    
+
+    clearTimeout(timeout);
     const data = await response.json();
-    
+
+    // Log raw response for debugging
+    console.log('Fun fact API response:', JSON.stringify(data).substring(0, 500));
+
     if (data.error) {
       console.error('Fun fact generation error:', data.error);
       return null;
     }
-    
+
     let content = data.choices?.[0]?.message?.content || '';
-    
+
+    // If empty, check for reasoning_content (some models put output there)
+    if (!content && data.choices?.[0]?.message?.reasoning_content) {
+      console.log('Found reasoning_content instead of content');
+      content = data.choices[0].message.reasoning_content;
+    }
+
     content = content
       .replace(/<\/?s>/g, '')
       .replace(/\[\/INST\]/g, '')
@@ -704,8 +719,19 @@ async function generateFunFact(words) {
       .replace(/^["']|["']$/g, '')
       .replace(/^FUN FACT:\s*/i, '')
       .trim();
-    
-    return content || null;
+
+    if (!content) {
+      // Check if it was cut off due to token limit
+      const finishReason = data.choices?.[0]?.finish_reason;
+      if (finishReason === 'length') {
+        console.log('Fun fact generation hit token limit - reasoning used all tokens');
+      } else {
+        console.log('Fun fact content empty after processing');
+      }
+      return null;
+    }
+
+    return content;
   } catch (err) {
     console.error('Fun fact generation error:', err);
     return null;
@@ -795,10 +821,15 @@ function revealResults(lobby) {
       if (funFact) {
         console.log(`Fun fact generated for [${validWords.join(', ')}]: "${funFact.substring(0, 50)}..."`);
         broadcastToLobby(lobby, 'game:funFact', { funFact });
+      } else {
+        // Let client know fun fact failed so it can hide the loading state
+        console.log(`Fun fact generation failed for [${validWords.join(', ')}]`);
+        broadcastToLobby(lobby, 'game:funFact', { funFact: null, failed: true });
       }
     });
   } else {
     console.log(`No valid words for fun fact in round ${lobby.roundNumber}`);
+    broadcastToLobby(lobby, 'game:funFact', { funFact: null, failed: true });
   }
 }
 
