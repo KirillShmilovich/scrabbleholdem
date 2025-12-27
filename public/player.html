@@ -2010,10 +2010,22 @@
     // WAITING ROOM
     // ========================================
     function generateShareLink(lobbyCode) {
-      const url = new URL(window.location.href);
-      url.pathname = '/play';
-      url.search = `?code=${lobbyCode}`;
+      const url = new URL(window.location.origin);
+      url.pathname = `/play/${lobbyCode}`;
       return url.toString();
+    }
+
+    function getLobbyCodeFromUrl() {
+      // URL format: /play/ABCD
+      const match = window.location.pathname.match(/^\/play\/([A-Za-z0-9]{4})$/);
+      return match ? match[1].toUpperCase() : null;
+    }
+
+    function setUrlLobbyCode(lobbyCode) {
+      const newUrl = lobbyCode ? `/play/${lobbyCode}` : '/play';
+      if (window.location.pathname !== newUrl) {
+        window.history.pushState({ lobbyCode }, '', newUrl);
+      }
     }
     
     function updateWaitingRoom(state) {
@@ -2119,7 +2131,7 @@
     elements.leaveLobbyBtn.addEventListener('click', () => {
       if (confirm('Leave this lobby?')) {
         clearSession();
-        window.location.reload();
+        window.location.href = '/play'; // Go to /play without lobby code
       }
     });
     
@@ -2730,13 +2742,22 @@
         elements.connectingOverlay.classList.add('hidden');
         elements.reconnectingBanner.classList.add('hidden');
 
+        // URL is the source of truth for which lobby to join
+        const urlCode = getLobbyCodeFromUrl();
+
         // Debounce rejoin attempts to prevent spam on flaky connections
         const now = Date.now();
-        if (session?.lobbyCode && session?.visibleId && (now - lastRejoinAttempt > REJOIN_DEBOUNCE_MS)) {
+        if (now - lastRejoinAttempt < REJOIN_DEBOUNCE_MS) {
+          console.log('Rejoin debounced');
+          return;
+        }
+
+        // Only auto-rejoin if URL has a lobby code AND we have a matching session
+        if (urlCode && session?.lobbyCode === urlCode && session?.visibleId) {
           lastRejoinAttempt = now;
-          console.log(`Auto-rejoining lobby ${session.lobbyCode}...`);
+          console.log(`Auto-rejoining lobby ${urlCode}...`);
           socket.emit('lobby:join', {
-            code: session.lobbyCode,
+            code: urlCode,
             name: session.name,
             existingId: session.visibleId,
           });
@@ -2756,15 +2777,17 @@
       // Lobby created
       socket.on('lobby:created', (data) => {
         saveSession(data.lobbyCode, data.visibleId, data.state.player.name);
+        setUrlLobbyCode(data.lobbyCode); // Update URL to /play/CODE
         settingsRounds = data.state.settings.totalRounds;
         settingsTimer = data.state.settings.timerDuration;
         updateWaitingRoom(data.state);
         showScreen('waiting');
       });
-      
+
       // Lobby joined
       socket.on('lobby:joined', (data) => {
         saveSession(data.lobbyCode, data.visibleId, data.state.player.name);
+        setUrlLobbyCode(data.lobbyCode); // Update URL to /play/CODE
         settingsRounds = data.state.settings.totalRounds;
         settingsTimer = data.state.settings.timerDuration;
         updateWaitingRoom(data.state);
@@ -2774,6 +2797,7 @@
       // Returning player rejoins mid-game
       socket.on('lobby:rejoined', (data) => {
         saveSession(data.lobbyCode, data.visibleId, data.state.player.name);
+        setUrlLobbyCode(data.lobbyCode); // Update URL to /play/CODE
         currentState = data.state;
         currentState.isHost = data.state.player?.isHost || data.state.isHost;
         
@@ -2795,12 +2819,14 @@
       // Lobby error
       socket.on('lobby:error', (data) => {
         console.log('Lobby error:', data.message);
-        
+
         // Clear stale session if lobby not found
         if (data.message.includes('not found')) {
           clearSession();
+          // Redirect to /play to clear the invalid lobby code from URL
+          setUrlLobbyCode(null);
         }
-        
+
         // Show error on join form
         let errorText = data.message;
         if (data.hint) {
@@ -2808,7 +2834,8 @@
         }
         elements.joinError.textContent = errorText;
         elements.joinError.classList.remove('hidden');
-        
+        elements.joinCode.value = ''; // Clear the invalid code
+
         // Make sure user sees the lobby screen
         showScreen('lobby');
         elements.joinTab.classList.add('active');
@@ -2974,51 +3001,49 @@
     // ========================================
     // INIT
     // ========================================
-    function checkUrlForCode() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      
-      if (code && code.length === 4) {
-        const upperCode = code.toUpperCase();
-        
-        // If we have a session for a DIFFERENT lobby, clear it
-        // This prevents auto-rejoining the wrong lobby
-        if (session?.lobbyCode && session.lobbyCode !== upperCode) {
-          console.log(`URL has code ${upperCode} but session has ${session.lobbyCode} - clearing session`);
-          clearSession();
-        }
-        
-        // Switch to join tab and pre-fill code
-        elements.joinTab.classList.add('active');
-        elements.createTab.classList.remove('active');
-        elements.joinForm.classList.remove('hidden');
-        elements.createForm.classList.add('hidden');
-        elements.joinCode.value = upperCode;
-        
-        // Clear the URL parameter without refreshing
-        const url = new URL(window.location.href);
-        url.searchParams.delete('code');
-        window.history.replaceState({}, '', url.pathname);
-        
-        return true;
-      }
-      return false;
-    }
-    
     function init() {
+      const urlCode = getLobbyCodeFromUrl();
+
+      // Also check for legacy ?code= query param and redirect to path-based URL
+      const queryCode = new URLSearchParams(window.location.search).get('code');
+      if (queryCode && queryCode.length === 4) {
+        window.location.href = `/play/${queryCode.toUpperCase()}`;
+        return;
+      }
+
       // Pre-fill name if we have a session
       if (session?.name) {
         elements.createName.value = session.name;
         elements.joinName.value = session.name;
       }
-      
-      // Check if there's a code in the URL
-      checkUrlForCode();
-      
+
+      // If URL has a lobby code
+      if (urlCode) {
+        // Clear session if it's for a different lobby
+        if (session?.lobbyCode && session.lobbyCode !== urlCode) {
+          console.log(`URL has ${urlCode} but session has ${session.lobbyCode} - clearing session`);
+          clearSession();
+        }
+
+        // Pre-fill join form with the URL code
+        elements.joinTab.classList.add('active');
+        elements.createTab.classList.remove('active');
+        elements.joinForm.classList.remove('hidden');
+        elements.createForm.classList.add('hidden');
+        elements.joinCode.value = urlCode;
+      } else {
+        // No code in URL - if session exists for a lobby, clear it
+        // User explicitly navigated to /play without a code
+        if (session?.lobbyCode) {
+          console.log('At /play without code, clearing stale session');
+          clearSession();
+        }
+      }
+
       initSocket();
       showScreen('lobby');
     }
-    
+
     init();
   </script>
 </body>

@@ -819,11 +819,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/play', (req, res) => {
+// Serve player page - with or without lobby code in path
+app.get('/play/:code?', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'player.html'));
 });
 
-// Keep board route but redirect to player
+// Legacy routes redirect to /play
 app.get('/board', (req, res) => {
   res.redirect('/play');
 });
