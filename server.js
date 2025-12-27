@@ -676,7 +676,7 @@ async function generateFunFact(words) {
               '- ALWAYS try to find a real connection first—most word pairs have one if you think about it\n' +
               '- No jokes or silly scenarios unless the words are truly random with zero connection\n' +
               '- No invented facts, fake etymology, or made-up history\n' +
-              '- Keep it to 1-2 sentences\n\n' +
+              '- Keep it short and concise, around 1-2 sentences\n\n' +
               'OUTPUT: Just the fact/connection, no labels.'
           },
           {
@@ -687,7 +687,7 @@ async function generateFunFact(words) {
           }
         ],
         reasoning: { enabled: false },
-        max_tokens: 1000,
+        max_tokens: 250,
         temperature: 0.5
       })
     });
