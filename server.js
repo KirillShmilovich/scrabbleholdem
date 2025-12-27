@@ -689,7 +689,7 @@ async function generateFunFact(words) {
           }
         ],
         reasoning: { enabled: false },
-        max_tokens: 120,
+        max_tokens: 125,
         temperature: 0.4
       })
     });
@@ -1112,10 +1112,7 @@ io.on('connection', (socket) => {
     }
     
     const player = lobby.players.get(visibleId);
-    
-    // Check if this is the first submission (before adding to map)
-    const isFirstSubmission = lobby.playerSubmissions.size === 0;
-    
+
     // Store player's dice letters for round history display
     const playerLetters = player.dice.map(d => d.letter).join('');
     
@@ -1129,14 +1126,14 @@ io.on('connection', (socket) => {
     });
     
     console.log(`${player.name} submitted: "${data.word}" (${data.score} pts, valid: ${data.isValid})`);
-    
-    // First submission halves the timer (if not already halved and not in last 10 seconds)
-    if (isFirstSubmission && !lobby.timerHalved && lobby.timerRemaining > 10) {
-      lobby.timerHalved = true;
+
+    // Each submission halves the timer (except when all players have now submitted)
+    const allSubmitted = lobby.playerSubmissions.size === lobby.players.size;
+    if (!allSubmitted && lobby.timerRemaining > 10) {
       const newTime = Math.max(10, Math.floor(lobby.timerRemaining / 2));
-      console.log(`First submission! Timer halved: ${lobby.timerRemaining}s → ${newTime}s`);
+      console.log(`${player.name} submitted! Timer halved: ${lobby.timerRemaining}s → ${newTime}s`);
       lobby.timerRemaining = newTime;
-      
+
       // Broadcast timer halved event to all players
       broadcastToLobby(lobby, 'game:timerHalved', {
         remaining: lobby.timerRemaining,
