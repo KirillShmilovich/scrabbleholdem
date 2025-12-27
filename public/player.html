@@ -465,7 +465,16 @@
     .game-screen {
       padding-bottom: var(--space-xl);
     }
-    
+
+    .game-screen::before {
+      content: '';
+      display: block;
+      height: 12px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+      margin: calc(-1 * var(--space-lg)) calc(-1 * var(--space-lg)) var(--space-sm);
+      border-radius: 0 0 8px 8px;
+    }
+
     .game-header {
       display: flex;
       justify-content: space-between;
@@ -643,8 +652,8 @@
     
     /* Die Styles */
     .die {
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       background: linear-gradient(145deg, #fffef9 0%, var(--die-bg) 100%);
       border: 3px solid var(--die-border);
       border-radius: 10px;
@@ -659,8 +668,8 @@
     }
 
     .die.medium {
-      width: 54px;
-      height: 54px;
+      width: 58px;
+      height: 58px;
     }
     
     .die .die-letter {
