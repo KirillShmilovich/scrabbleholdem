@@ -676,14 +676,15 @@ async function generateFunFact(words) {
               '- ALWAYS try to find a real connection first—most word pairs have one if you think about it\n' +
               '- No jokes or silly scenarios unless the words are truly random with zero connection\n' +
               '- No invented facts, fake etymology, or made-up history\n' +
-              '- BREVITY IS CRITICAL: Maximum 1-2 short sentences. Be punchy, not verbose.\n\n' +
+              '- BREVITY IS CRITICAL: Maximum 1-2 short sentences. Be punchy, not verbose.\n' +
+              '- IMPORTANT: Use the actual words from the list in your fact text to make the connection clear\n\n' +
               'OUTPUT: Just the fact/connection, no labels.'
           },
           {
             role: 'user',
             content:
               `Words played: ${wordsList}\n\n` +
-              'Find a genuine connection or interesting fact that ties these words together.'
+              'Find a genuine connection or interesting fact that ties these words together. Use the actual words in your response.'
           }
         ],
         reasoning: { enabled: false },
