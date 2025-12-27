@@ -46,6 +46,96 @@ app.get('/api/validate/:word', (req, res) => {
   res.json({ word, isValid, dictionarySize: dictionary.size });
 });
 
+// Fun fact API - generates a fun fact based on words played in the round
+app.post('/api/funfact', async (req, res) => {
+  const { words } = req.body;
+  
+  if (!words || !Array.isArray(words) || words.length === 0) {
+    return res.status(400).json({ error: 'No words provided' });
+  }
+  
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+  
+  // Filter to only valid, non-empty words
+  const validWords = words.filter(w => w && typeof w === 'string' && w.length > 0);
+  if (validWords.length === 0) {
+    return res.status(400).json({ error: 'No valid words provided' });
+  }
+  
+  const wordsList = validWords.map(w => w.toUpperCase()).join(', ');
+  
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'Scrabble Holdem'
+      },
+      body: JSON.stringify({
+        model: 'nvidia/nemotron-3-nano-30b-a3b:free',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You generate witty, genuinely interesting facts for an adult word game audience. ' +
+              'Given a list of words players used, find a clever connection or share a fascinating tidbit.\n\n' +
+              'Guidelines:\n' +
+              '- Be genuinely interesting—the kind of fact you\'d share at a dinner party\n' +
+              '- Historical oddities, etymology surprises, pop culture connections, scientific quirks all work\n' +
+              '- Dry wit > cutesy humor. Smart > silly.\n' +
+              '- If words seem unrelated, find an unexpected link—the more surprising, the better\n' +
+              '- Keep it tight: 1-2 punchy sentences\n' +
+              '- Be accurate—no made-up facts\n' +
+              '- If only one word, share something genuinely surprising about it\n\n' +
+              'Reply with ONLY the fact, no labels or prefixes.'
+          },
+          {
+            role: 'user',
+            content: `Words: ${wordsList}\n\nShare a genuinely interesting fact:`
+          }
+        ],
+        reasoning: { enabled: false },
+        max_tokens: 200,
+        temperature: 0.8
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error('OpenRouter error:', data.error);
+      return res.status(500).json({ error: 'Failed to generate fun fact' });
+    }
+    
+    let content = data.choices?.[0]?.message?.content || '';
+    
+    // Clean up model-specific tokens
+    content = content
+      .replace(/<\/?s>/g, '')
+      .replace(/\[\/INST\]/g, '')
+      .replace(/\[INST\]/g, '')
+      .replace(/<think>[\s\S]*?<\/think>/g, '')
+      .replace(/^["']|["']$/g, '')
+      .replace(/^FUN FACT:\s*/i, '')
+      .trim();
+    
+    if (!content) {
+      return res.status(500).json({ error: 'Empty response from model' });
+    }
+    
+    res.json({ funFact: content, words: validWords });
+    
+  } catch (err) {
+    console.error('Fun fact API error:', err);
+    res.status(500).json({ error: 'Failed to generate fun fact' });
+  }
+});
+
 // Word definition API using OpenRouter
 app.get('/api/define/:word', async (req, res) => {
   const word = (req.params.word || '').toLowerCase().trim();
@@ -533,6 +623,76 @@ function calculatePlacements(lobby) {
   return results;
 }
 
+// Generate fun fact for a set of words (used by revealResults)
+async function generateFunFact(words) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey || words.length === 0) return null;
+  
+  const wordsList = words.map(w => w.toUpperCase()).join(', ');
+  
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'Scrabble Holdem'
+      },
+      body: JSON.stringify({
+        model: 'nvidia/nemotron-3-nano-30b-a3b:free',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You generate witty, genuinely interesting facts for an adult word game audience. ' +
+              'Given a list of words players used, find a clever connection or share a fascinating tidbit.\n\n' +
+              'Guidelines:\n' +
+              '- Be genuinely interesting—the kind of fact you\'d share at a dinner party\n' +
+              '- Historical oddities, etymology surprises, pop culture connections, scientific quirks all work\n' +
+              '- Dry wit > cutesy humor. Smart > silly.\n' +
+              '- If words seem unrelated, find an unexpected link—the more surprising, the better\n' +
+              '- Keep it tight: 1-2 punchy sentences\n' +
+              '- Be accurate—no made-up facts\n' +
+              '- If only one word, share something genuinely surprising about it\n\n' +
+              'Reply with ONLY the fact, no labels or prefixes.'
+          },
+          {
+            role: 'user',
+            content: `Words played: ${wordsList}\n\nShare a genuinely interesting fact:`
+          }
+        ],
+        reasoning: { enabled: false },
+        max_tokens: 200,
+        temperature: 0.8
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error('Fun fact generation error:', data.error);
+      return null;
+    }
+    
+    let content = data.choices?.[0]?.message?.content || '';
+    
+    content = content
+      .replace(/<\/?s>/g, '')
+      .replace(/\[\/INST\]/g, '')
+      .replace(/\[INST\]/g, '')
+      .replace(/<think>[\s\S]*?<\/think>/g, '')
+      .replace(/^["']|["']$/g, '')
+      .replace(/^FUN FACT:\s*/i, '')
+      .trim();
+    
+    return content || null;
+  } catch (err) {
+    console.error('Fun fact generation error:', err);
+    return null;
+  }
+}
+
 // Reveal results for a round
 function revealResults(lobby) {
   if (lobby.revealed) return;
@@ -590,14 +750,29 @@ function revealResults(lobby) {
   // Check if this is the last round (but don't end game yet - wait for host to view final results)
   const isLastRound = lobby.roundNumber >= lobby.settings.totalRounds;
   
-  // Broadcast results (same for all rounds including last)
+  // Extract valid words for fun fact
+  const validWords = results
+    .filter(r => r.word && !r.isInvalid && !r.noSubmission)
+    .map(r => r.word);
+  
+  // Broadcast results immediately (fun fact will follow)
   broadcastToLobby(lobby, 'game:roundResults', {
     roundNumber: lobby.roundNumber,
     totalRounds: lobby.settings.totalRounds,
     results,
     standings,
-    isLastRound, // Changed from isGameOver - signals UI to show "See Final Results" button
+    isLastRound,
+    funFact: null, // Will be sent separately
   });
+  
+  // Generate and broadcast fun fact asynchronously
+  if (validWords.length > 0) {
+    generateFunFact(validWords).then(funFact => {
+      if (funFact) {
+        broadcastToLobby(lobby, 'game:funFact', { funFact });
+      }
+    });
+  }
   
   console.log(`Round ${lobby.roundNumber} results for lobby ${lobby.code}:`, 
     results.map(r => `${r.name}: ${r.word} (${r.score}pts, ${r.pointsEarned} earned)`).join(', '));
@@ -956,6 +1131,45 @@ io.on('connection', (socket) => {
     });
     
     console.log(`Game finished in lobby ${lobby.code}. Winner: ${standings[0]?.name}`);
+  });
+  
+  // End game early (host only)
+  socket.on('game:endEarly', () => {
+    const lobby = lobbies.get(socket.lobbyCode);
+    if (!lobby) return;
+    
+    const player = lobby.players.get(socket.visibleId);
+    if (!player?.isHost) return;
+    
+    if (lobby.status !== 'playing') return;
+    
+    console.log(`Host ending game early in lobby ${lobby.code}`);
+    
+    // Stop any running timer
+    stopTimer(lobby);
+    
+    // Reset game state
+    lobby.status = 'waiting';
+    lobby.roundNumber = 0;
+    lobby.communityDice = [];
+    lobby.modifier = null;
+    lobby.playerSubmissions.clear();
+    lobby.revealed = false;
+    lobby.roundHistory = [];
+    resetDeck(lobby);
+    
+    // Reset all player points and dice
+    lobby.players.forEach(p => {
+      p.totalPoints = 0;
+      p.dice = [];
+    });
+    
+    // Broadcast return to lobby
+    broadcastToLobby(lobby, 'game:returnToLobby', {
+      lobbyCode: lobby.code,
+    });
+    
+    broadcastPlayerList(lobby);
   });
   
   // Play again (host only, after game over)

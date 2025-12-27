@@ -412,6 +412,47 @@
       opacity: 0.8;
     }
     
+    /* End Game / Leave Button */
+    .end-game-btn {
+      position: fixed;
+      top: var(--space-md);
+      right: var(--space-md);
+      padding: var(--space-xs) var(--space-md);
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      border-radius: 8px;
+      color: #f87171;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 50;
+    }
+    
+    .end-game-btn:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+    }
+    
+    .leave-lobby-btn {
+      margin-top: var(--space-xl);
+      padding: var(--space-sm) var(--space-lg);
+      background: transparent;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 8px;
+      color: #f87171;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .leave-lobby-btn:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: #ef4444;
+    }
+    
     /* ========================================
        GAME SCREEN
        ======================================== */
@@ -1072,6 +1113,52 @@
       box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
     }
     
+    /* Fun Fact Section */
+    .fun-fact-section {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: var(--space-xl);
+      padding: var(--space-md) var(--space-lg);
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.08));
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-md);
+    }
+    
+    .fun-fact-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+      opacity: 0.85;
+      margin-top: 2px;
+    }
+    
+    .fun-fact-text {
+      color: var(--gold-light);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      font-style: italic;
+    }
+    
+    .fun-fact-loading {
+      color: var(--wood-light);
+      opacity: 0.6;
+      font-size: 0.85rem;
+      font-style: normal;
+    }
+    
+    .fun-fact-loading::after {
+      content: '';
+      animation: funFactDots 1.5s infinite;
+    }
+    
+    @keyframes funFactDots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+    
     .waiting-for-host {
       color: var(--wood-light);
       opacity: 0.8;
@@ -1569,12 +1656,18 @@
     
     <!-- Waiting message (non-host) -->
     <p class="waiting-message hidden" id="waitingMessage">Waiting for host to start...</p>
+    
+    <!-- Leave Lobby -->
+    <button class="leave-lobby-btn" id="leaveLobbyBtn">Leave Lobby</button>
   </div>
 
   <!-- ========================================
        GAME SCREEN
        ======================================== -->
   <div class="screen game-screen hidden" id="gameScreen">
+    <!-- End Game Button (host only) -->
+    <button class="end-game-btn hidden" id="endGameBtn">✕ End Game</button>
+    
     <header class="game-header">
       <div class="round-info">
         <div class="round-number">Round <span id="roundNumber">1</span> of <span id="totalRounds">10</span></div>
@@ -1650,6 +1743,9 @@
        RESULTS SCREEN
        ======================================== -->
   <div class="screen results-screen hidden" id="resultsScreen">
+    <!-- End Game Button (host only) -->
+    <button class="end-game-btn hidden" id="endGameBtnResults">✕ End Game</button>
+    
     <div class="results-header">
       <h2 class="results-title">Round <span id="resultsRoundNumber">1</span> Results</h2>
       <p class="results-subtitle">Round <span id="resultsCurrentRound">1</span> of <span id="resultsTotalRounds">10</span></p>
@@ -1663,6 +1759,14 @@
       <div class="standings-title">Standings</div>
       <div class="standings-list" id="standingsList">
         <!-- Standing items inserted here -->
+      </div>
+    </div>
+    
+    <!-- Fun Fact -->
+    <div class="fun-fact-section" id="funFactSection">
+      <span class="fun-fact-icon">💡</span>
+      <div class="fun-fact-text" id="funFactText">
+        <span class="fun-fact-loading">Generating</span>
       </div>
     </div>
     
@@ -1757,8 +1861,10 @@
       timerValue: document.getElementById('timerValue'),
       startGameBtn: document.getElementById('startGameBtn'),
       waitingMessage: document.getElementById('waitingMessage'),
+      leaveLobbyBtn: document.getElementById('leaveLobbyBtn'),
       
       // Game
+      endGameBtn: document.getElementById('endGameBtn'),
       roundNumber: document.getElementById('roundNumber'),
       totalRounds: document.getElementById('totalRounds'),
       playerNameDisplay: document.getElementById('playerNameDisplay'),
@@ -1781,11 +1887,14 @@
       playersStatusList: document.getElementById('playersStatusList'),
       
       // Results
+      endGameBtnResults: document.getElementById('endGameBtnResults'),
       resultsRoundNumber: document.getElementById('resultsRoundNumber'),
       resultsCurrentRound: document.getElementById('resultsCurrentRound'),
       resultsTotalRounds: document.getElementById('resultsTotalRounds'),
       roundResults: document.getElementById('roundResults'),
       standingsList: document.getElementById('standingsList'),
+      funFactSection: document.getElementById('funFactSection'),
+      funFactText: document.getElementById('funFactText'),
       nextRoundBtn: document.getElementById('nextRoundBtn'),
       finalResultsBtn: document.getElementById('finalResultsBtn'),
       waitingForNextRound: document.getElementById('waitingForNextRound'),
@@ -2006,6 +2115,14 @@
       elements.shareLinkInput.select();
     });
     
+    // Leave lobby button
+    elements.leaveLobbyBtn.addEventListener('click', () => {
+      if (confirm('Leave this lobby?')) {
+        clearSession();
+        window.location.reload();
+      }
+    });
+    
     // ========================================
     // GAME SCREEN
     // ========================================
@@ -2016,6 +2133,9 @@
       elements.totalRounds.textContent = state.totalRounds;
       elements.playerNameDisplay.textContent = state.player.name;
       elements.timerDisplay.textContent = formatTime(state.timerRemaining);
+      
+      // Show end game button for host
+      elements.endGameBtn.classList.toggle('hidden', !state.isHost);
       
       // Update modifier banner
       if (state.modifier) {
@@ -2380,6 +2500,16 @@
       calculateScore();
     });
     
+    // End game buttons (host only)
+    function handleEndGame() {
+      if (confirm('End the game early? This will take everyone back to the lobby.')) {
+        socket.emit('game:endEarly');
+      }
+    }
+    
+    elements.endGameBtn.addEventListener('click', handleEndGame);
+    elements.endGameBtnResults.addEventListener('click', handleEndGame);
+    
     elements.submitBtn.addEventListener('click', () => {
       if (!currentSubmission || !currentSubmission.word) return;
       
@@ -2392,6 +2522,9 @@
     // RESULTS SCREEN
     // ========================================
     function showResults(data) {
+      // Reset fun fact section to loading state
+      elements.funFactText.innerHTML = '<span class="fun-fact-loading">Generating</span>';
+      elements.funFactSection.style.display = 'flex';
       elements.resultsRoundNumber.textContent = data.roundNumber;
       elements.resultsCurrentRound.textContent = data.roundNumber;
       elements.resultsTotalRounds.textContent = data.totalRounds;
@@ -2429,6 +2562,15 @@
       elements.finalResultsBtn.style.display = isHost && isLastRound ? 'block' : 'none';
       elements.waitingForNextRound.classList.toggle('hidden', isHost);
       elements.waitingForNextRound.textContent = isLastRound ? 'Waiting for final results...' : 'Waiting for host...';
+      
+      // Show end game button for host
+      elements.endGameBtnResults.classList.toggle('hidden', !isHost);
+      
+      // Check if there are any valid words (fun fact will come from server)
+      const hasValidWords = data.results.some(r => r.word && !r.noSubmission && !r.isInvalid);
+      if (!hasValidWords) {
+        elements.funFactSection.style.display = 'none';
+      }
       
       showScreen('results');
     }
@@ -2576,8 +2718,6 @@
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: 20000,
-        transports: ['websocket', 'polling'], // Try WebSocket first, fall back to polling
       });
       
       socket.on('connect', () => {
@@ -2587,6 +2727,7 @@
         
         // Try to rejoin if we have a session
         if (session?.lobbyCode && session?.visibleId) {
+          console.log(`Auto-rejoining lobby ${session.lobbyCode}...`);
           socket.emit('lobby:join', {
             code: session.lobbyCode,
             name: session.name,
@@ -2602,7 +2743,7 @@
       
       socket.on('connect_error', (error) => {
         console.log('Connection error:', error.message);
-        elements.connectingSubtext.textContent = 'Server may be waking up...';
+        elements.connectingSubtext.textContent = 'Connecting...';
       });
       
       // Lobby created
@@ -2646,6 +2787,14 @@
       
       // Lobby error
       socket.on('lobby:error', (data) => {
+        console.log('Lobby error:', data.message);
+        
+        // Clear stale session if lobby not found
+        if (data.message.includes('not found')) {
+          clearSession();
+        }
+        
+        // Show error on join form
         let errorText = data.message;
         if (data.hint) {
           errorText += ` (${data.hint})`;
@@ -2653,10 +2802,12 @@
         elements.joinError.textContent = errorText;
         elements.joinError.classList.remove('hidden');
         
-        // If we were trying to auto-rejoin a session that no longer exists, clear it
-        if (session?.lobbyCode && data.message.includes('not found')) {
-          clearSession();
-        }
+        // Make sure user sees the lobby screen
+        showScreen('lobby');
+        elements.joinTab.classList.add('active');
+        elements.createTab.classList.remove('active');
+        elements.joinForm.classList.remove('hidden');
+        elements.createForm.classList.add('hidden');
       });
       
       // Players updated
@@ -2777,6 +2928,15 @@
         showResults(data);
       });
       
+      // Fun fact (sent separately after results)
+      socket.on('game:funFact', (data) => {
+        if (data.funFact) {
+          elements.funFactText.textContent = data.funFact;
+        } else {
+          elements.funFactSection.style.display = 'none';
+        }
+      });
+      
       // Final results (after all rounds)
       socket.on('game:finalResults', (data) => {
         showGameOver(data);
@@ -2812,12 +2972,21 @@
       const code = urlParams.get('code');
       
       if (code && code.length === 4) {
+        const upperCode = code.toUpperCase();
+        
+        // If we have a session for a DIFFERENT lobby, clear it
+        // This prevents auto-rejoining the wrong lobby
+        if (session?.lobbyCode && session.lobbyCode !== upperCode) {
+          console.log(`URL has code ${upperCode} but session has ${session.lobbyCode} - clearing session`);
+          clearSession();
+        }
+        
         // Switch to join tab and pre-fill code
         elements.joinTab.classList.add('active');
         elements.createTab.classList.remove('active');
         elements.joinForm.classList.remove('hidden');
         elements.createForm.classList.add('hidden');
-        elements.joinCode.value = code.toUpperCase();
+        elements.joinCode.value = upperCode;
         
         // Clear the URL parameter without refreshing
         const url = new URL(window.location.href);
