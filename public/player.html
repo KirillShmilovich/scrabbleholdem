@@ -2712,25 +2712,28 @@
     // ========================================
     // SOCKET EVENTS
     // ========================================
+    let lastRejoinAttempt = 0;
+    const REJOIN_DEBOUNCE_MS = 2000; // Prevent rejoin spam
+
     function initSocket() {
       socket = io({
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        // Use polling for reliable connections behind reverse proxies (Render, Heroku)
-        transports: ['polling'],
-        // Allow upgrade to websocket after connection established
-        upgrade: true,
+        // WebSocket first for stable connections, polling as fallback
+        transports: ['websocket', 'polling'],
       });
-      
+
       socket.on('connect', () => {
-        console.log('Connected to server');
+        console.log('Connected to server via', socket.io.engine.transport.name);
         elements.connectingOverlay.classList.add('hidden');
         elements.reconnectingBanner.classList.add('hidden');
-        
-        // Try to rejoin if we have a session
-        if (session?.lobbyCode && session?.visibleId) {
+
+        // Debounce rejoin attempts to prevent spam on flaky connections
+        const now = Date.now();
+        if (session?.lobbyCode && session?.visibleId && (now - lastRejoinAttempt > REJOIN_DEBOUNCE_MS)) {
+          lastRejoinAttempt = now;
           console.log(`Auto-rejoining lobby ${session.lobbyCode}...`);
           socket.emit('lobby:join', {
             code: session.lobbyCode,
@@ -2739,12 +2742,12 @@
           });
         }
       });
-      
-      socket.on('disconnect', () => {
-        console.log('Disconnected');
+
+      socket.on('disconnect', (reason) => {
+        console.log('Disconnected:', reason);
         elements.reconnectingBanner.classList.remove('hidden');
       });
-      
+
       socket.on('connect_error', (error) => {
         console.log('Connection error:', error.message);
         elements.connectingSubtext.textContent = 'Connecting...';

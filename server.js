@@ -17,14 +17,11 @@ const io = new Server(server, {
     origin: "*",
     methods: ["GET", "POST"]
   },
-  // Use polling only - more reliable behind reverse proxies like Render
-  transports: ['polling'],
-  allowEIO3: true,
-  pingTimeout: 120000,
-  pingInterval: 30000,
-  upgradeTimeout: 30000,
-  // Allow upgrades to websocket after initial polling connection
-  allowUpgrades: true,
+  // WebSocket first for stable persistent connections, polling as fallback
+  transports: ['websocket', 'polling'],
+  // Shorter timeouts for faster failure detection
+  pingTimeout: 20000,   // 20 seconds to detect dead connections
+  pingInterval: 10000,  // Ping every 10 seconds to keep connection alive
 });
 
 // Serve static files

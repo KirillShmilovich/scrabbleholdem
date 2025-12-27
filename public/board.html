@@ -440,7 +440,9 @@
   
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    const socket = io({
+      transports: ['websocket', 'polling'],
+    });
     
     // Timer configuration (in seconds)
     let timerDuration = 75; // 1:15 default
