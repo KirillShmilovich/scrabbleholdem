@@ -470,9 +470,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: var(--space-md);
+      padding-bottom: var(--space-sm);
       border-bottom: 1px solid rgba(212, 175, 55, 0.3);
-      margin-bottom: var(--space-md);
+      margin-bottom: var(--space-sm);
     }
     
     .round-info {
@@ -500,11 +500,11 @@
     
     .timer-display {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 2rem;
+      font-size: 1.5rem;
       font-weight: 700;
       color: var(--cream);
       background: rgba(0, 0, 0, 0.3);
-      padding: var(--space-sm) var(--space-lg);
+      padding: var(--space-xs) var(--space-md);
       border-radius: 12px;
       border: 2px solid var(--gold);
       transition: all 0.3s ease;
@@ -570,7 +570,7 @@
     /* Community Dice Section */
     .community-section {
       text-align: center;
-      margin-bottom: var(--space-lg);
+      margin-bottom: var(--space-sm);
     }
     
     .section-label {
@@ -585,9 +585,9 @@
     .community-dice-row {
       display: flex;
       justify-content: center;
-      gap: var(--space-sm);
+      gap: var(--space-xs);
       flex-wrap: wrap;
-      margin-bottom: var(--space-md);
+      margin-bottom: var(--space-sm);
     }
     
     /* Modifier Banner */
@@ -595,9 +595,9 @@
       background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.2));
       border: 2px solid var(--modifier-color, var(--gold));
       border-radius: 12px;
-      padding: var(--space-sm) var(--space-md);
+      padding: var(--space-xs);
       text-align: center;
-      margin-bottom: var(--space-md);
+      margin-bottom: var(--space-sm);
     }
     
     .modifier-banner-title {
@@ -632,7 +632,7 @@
     /* Your Dice Section */
     .your-dice-section {
       text-align: center;
-      margin-bottom: var(--space-md);
+      margin-bottom: var(--space-sm);
     }
     
     .your-dice-row {
@@ -643,8 +643,8 @@
     
     /* Die Styles */
     .die {
-      width: 52px;
-      height: 52px;
+      width: 44px;
+      height: 44px;
       background: linear-gradient(145deg, #fffef9 0%, var(--die-bg) 100%);
       border: 3px solid var(--die-border);
       border-radius: 10px;
@@ -657,10 +657,10 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    
+
     .die.medium {
-      width: 65px;
-      height: 65px;
+      width: 54px;
+      height: 54px;
     }
     
     .die .die-letter {
@@ -741,7 +741,7 @@
     /* Word Display */
     .word-section {
       text-align: center;
-      margin-bottom: var(--space-md);
+      margin-bottom: var(--space-sm);
     }
     
     .word-display {
@@ -794,9 +794,9 @@
       background: rgba(0, 0, 0, 0.3);
       border: 2px solid var(--gold);
       border-radius: 16px;
-      padding: var(--space-md);
+      padding: var(--space-sm);
       text-align: center;
-      margin-bottom: var(--space-md);
+      margin-bottom: var(--space-sm);
     }
     
     .score-label {
@@ -810,7 +810,7 @@
     
     .score-value {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 2.5rem;
+      font-size: 2rem;
       font-weight: 700;
       color: var(--gold);
     }
@@ -834,7 +834,7 @@
     /* Submit Section */
     .submit-section {
       text-align: center;
-      margin-bottom: var(--space-lg);
+      margin-bottom: var(--space-sm);
     }
     
     .submit-btn {
@@ -883,8 +883,8 @@
     
     /* Players Sidebar (who has submitted) */
     .players-status {
-      margin-top: var(--space-md);
-      padding-top: var(--space-md);
+      margin-top: var(--space-sm);
+      padding-top: var(--space-sm);
       border-top: 1px solid rgba(212, 175, 55, 0.2);
     }
     
@@ -935,6 +935,18 @@
     .player-status-dot.offline {
       background: #6b7280;
       opacity: 0.5;
+    }
+
+    .player-status-name {
+      flex: 1;
+    }
+
+    .player-status-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--gold);
+      font-weight: 600;
+      margin-left: auto;
     }
     
     /* ========================================
@@ -1029,7 +1041,22 @@
       font-size: 0.9rem;
       color: var(--wood-light);
     }
-    
+
+    .result-word-prominent {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--gold-light);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-top: var(--space-xs);
+    }
+
+    .result-item.place-1 .result-word-prominent {
+      color: var(--gold);
+      text-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+    }
+
     .result-score {
       text-align: right;
     }
@@ -1145,7 +1172,13 @@
       line-height: 1.6;
       font-style: italic;
     }
-    
+
+    .fun-fact-text strong {
+      color: var(--gold);
+      font-weight: 700;
+      font-style: normal;
+    }
+
     .fun-fact-loading {
       color: var(--wood-light);
       opacity: 0.6;
@@ -1271,28 +1304,43 @@
     .round-history-meta {
       text-align: right;
     }
-    
-    .round-history-letters-label {
-      font-size: 0.6rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--wood-light);
-      opacity: 0.5;
+
+    .round-history-tiles {
+      display: flex;
+      gap: 2px;
+      justify-content: flex-end;
+      margin-bottom: var(--space-xs);
     }
-    
-    .round-history-letters-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
-      color: var(--cream);
-      letter-spacing: 0.1em;
-    }
-    
-    .round-history-modifier {
+
+    .rh-tile {
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(145deg, #fffef9 0%, var(--die-bg) 100%);
+      border: 2px solid var(--die-border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
       font-size: 0.7rem;
-      color: var(--gold);
-      opacity: 0.8;
+      font-weight: 700;
+      color: var(--felt-dark);
     }
-    
+
+    .rh-tile-modified {
+      border-color: var(--gold);
+      background: linear-gradient(145deg, #fff9e6 0%, #ffe066 100%);
+      box-shadow: 0 0 4px rgba(212, 175, 55, 0.5);
+    }
+
+    .round-history-modifier-desc {
+      font-size: 0.6rem;
+      color: var(--gold);
+      font-style: italic;
+      max-width: 120px;
+      text-align: right;
+    }
+
     /* Column headers */
     .round-history-columns {
       display: flex;
@@ -1404,12 +1452,12 @@
     .rh-player-letters {
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.65rem;
-      color: var(--wood-light);
-      opacity: 0.6;
-      letter-spacing: 0.05em;
-      padding: 2px 4px;
-      background: rgba(0, 0, 0, 0.15);
-      border-radius: 4px;
+      color: var(--cream);
+      letter-spacing: 0.1em;
+      padding: 3px 6px;
+      background: rgba(212, 175, 55, 0.15);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      border-radius: 6px;
       margin-left: auto;
     }
     
@@ -1991,7 +2039,18 @@
       const secs = seconds % 60;
       return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
-    
+
+    function renderMarkdown(text) {
+      if (!text) return '';
+      // Escape HTML first to prevent XSS
+      const escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      // Convert **text** to <strong>text</strong>
+      return escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    }
+
     // ========================================
     // LOBBY TAB SWITCHING
     // ========================================
@@ -2511,7 +2570,7 @@
       elements.playersStatusList.innerHTML = players.map(p => {
         let statusClass = p.hasSubmitted ? 'submitted' : '';
         let statusText = p.name;
-        
+
         if (p.isReconnecting) {
           statusClass = 'reconnecting';
           statusText = `${p.name} ⟳`;
@@ -2519,11 +2578,14 @@
           statusClass = 'offline';
           statusText = `${p.name} (offline)`;
         }
-        
+
+        const scoreDisplay = typeof p.totalPoints === 'number' ? p.totalPoints : 0;
+
         return `
           <div class="player-status-item">
             <span class="player-status-dot ${statusClass}"></span>
-            <span>${statusText}</span>
+            <span class="player-status-name">${statusText}</span>
+            <span class="player-status-score">${scoreDisplay} pts</span>
           </div>
         `;
       }).join('');
@@ -2576,7 +2638,7 @@
             <div class="result-place">${placeText}</div>
             <div class="result-info">
               <div class="result-name">${r.name}${r.visibleId === session?.visibleId ? ' (you)' : ''}</div>
-              <div class="result-word">${wordDisplay}</div>
+              <div class="result-word-prominent">${wordDisplay}</div>
             </div>
             <div class="result-score">
               <div class="result-word-score">${r.score} pts</div>
@@ -2633,6 +2695,15 @@
     // ========================================
     // GAME OVER SCREEN
     // ========================================
+    function renderCommunityTiles(letters, modifier) {
+      if (!letters || !letters.length) return '';
+      return letters.map((letter, idx) => {
+        const isModified = modifier && idx === modifier.dieIndex;
+        const tileClass = isModified ? 'rh-tile rh-tile-modified' : 'rh-tile';
+        return `<span class="${tileClass}">${letter}</span>`;
+      }).join('');
+    }
+
     function renderRoundHistory(roundHistory) {
       if (!roundHistory || roundHistory.length === 0) {
         elements.roundHistoryList.innerHTML = '<p style="color: var(--wood-light); opacity: 0.6; text-align: center;">No round data</p>';
@@ -2699,9 +2770,8 @@
               <div class="round-history-title-row">
                 <span class="round-history-number">Round ${round.roundNumber}</span>
                 <div class="round-history-meta">
-                  <div class="round-history-letters-label">Letters</div>
-                  <div class="round-history-letters-value">${round.communityLetters}</div>
-                  <div class="round-history-modifier">${round.modifier || ''}</div>
+                  <div class="round-history-tiles">${renderCommunityTiles(round.communityDice, round.modifier)}</div>
+                  <div class="round-history-modifier-desc">${round.modifier?.desc || ''}</div>
                 </div>
               </div>
               <div class="round-history-columns">
@@ -2988,7 +3058,7 @@
       // Fun fact (sent separately after results)
       socket.on('game:funFact', (data) => {
         if (data.funFact) {
-          elements.funFactText.textContent = data.funFact;
+          elements.funFactText.innerHTML = renderMarkdown(data.funFact);
         } else {
           elements.funFactSection.style.display = 'none';
         }

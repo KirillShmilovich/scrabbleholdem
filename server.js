@@ -677,7 +677,8 @@ async function generateFunFact(words) {
               '- No jokes or silly scenarios unless the words are truly random with zero connection\n' +
               '- No invented facts, fake etymology, or made-up history\n' +
               '- BREVITY IS CRITICAL: Maximum 1-2 short sentences. Be punchy, not verbose.\n' +
-              '- IMPORTANT: Use the actual words from the list in your fact text to make the connection clear\n\n' +
+              '- IMPORTANT: Use the actual words from the list in your fact text to make the connection clear\n' +
+              '- FORMAT: Wrap word references in **double asterisks** for emphasis (e.g., **WORD**). Always use ALL CAPS for the words.\n\n' +
               'OUTPUT: Just the fact/connection, no labels.'
           },
           {
@@ -789,8 +790,8 @@ function revealResults(lobby) {
       };
     }),
     standings: standingsSnapshot, // Running totals after this round
-    communityLetters: lobby.communityDice.map(d => d.letter).join(''),
-    modifier: lobby.modifier?.name,
+    communityDice: lobby.communityDice.map(d => d.letter), // Keep as array for visual display
+    modifier: lobby.modifier, // Store full modifier object (includes dieIndex, name, desc)
   });
   
   // Check if this is the last round (but don't end game yet - wait for host to view final results)
