@@ -1115,9 +1115,12 @@ io.on('connection', (socket) => {
     
     const player = lobby.players.get(visibleId);
 
+    // Check if this is a new submission or a resubmission
+    const isNewSubmission = !lobby.playerSubmissions.has(visibleId);
+
     // Store player's dice letters for round history display
     const playerLetters = player.dice.map(d => d.letter).join('');
-    
+
     lobby.playerSubmissions.set(visibleId, {
       word: data.word,
       score: data.score,
@@ -1126,12 +1129,12 @@ io.on('connection', (socket) => {
       playerLetters, // Store which letters the player had
       timestamp: Date.now(),
     });
-    
-    console.log(`${player.name} submitted: "${data.word}" (${data.score} pts, valid: ${data.isValid})`);
 
-    // Each submission halves the timer (except when all players have now submitted)
+    console.log(`${player.name} ${isNewSubmission ? 'submitted' : 'resubmitted'}: "${data.word}" (${data.score} pts, valid: ${data.isValid})`);
+
+    // Only halve timer on NEW submissions (not resubmissions), and not when all players have submitted
     const allSubmitted = lobby.playerSubmissions.size === lobby.players.size;
-    if (!allSubmitted && lobby.timerRemaining > 10) {
+    if (isNewSubmission && !allSubmitted && lobby.timerRemaining > 10) {
       const newTime = Math.max(10, Math.floor(lobby.timerRemaining / 2));
       console.log(`${player.name} submitted! Timer halved: ${lobby.timerRemaining}s → ${newTime}s`);
       lobby.timerRemaining = newTime;
