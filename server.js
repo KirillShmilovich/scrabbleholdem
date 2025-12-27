@@ -662,34 +662,36 @@ async function generateFunFact(words) {
           {
             role: 'system',
             content:
-              'You find genuine connections between words for a Scrabble-style word game.\n\n' +
-              'CONTEXT:\n' +
-              '- Players submitted valid Scrabble words\n' +
-              '- Some may be obscure: QI (Chinese life force), XI (Greek letter), BOS (cattle genus), KOS (plural of KO), AA (volcanic rock)\n' +
-              '- Your job: find a REAL connection or fact that ties the words together\n\n' +
-              'PRIORITIES (in order):\n' +
-              '1. BEST: A genuine fact connecting the words (science, history, pop culture, language)\n' +
-              '2. GOOD: An interesting fact about one word that relates to the other\n' +
-              '3. OK: A true observation about how the words relate thematically\n' +
-              '4. LAST RESORT: Clever wordplay, but only if no real connection exists\n\n' +
-              'RULES:\n' +
-              '- ALWAYS try to find a real connection first—most word pairs have one if you think about it\n' +
-              '- No jokes or silly scenarios unless the words are truly random with zero connection\n' +
-              '- No invented facts, fake etymology, or made-up history\n' +
-              '- BREVITY IS CRITICAL: Maximum 1-2 short sentences. Be punchy, not verbose.\n' +
-              '- IMPORTANT: Use the actual words from the list in your fact text to make the connection clear\n' +
-              '- FORMAT: Wrap word references in **double asterisks** for emphasis (e.g., **WORD**). Always use ALL CAPS for the words.\n\n' +
-              'OUTPUT: Just the fact/connection, no labels.'
+              'Generate a short, punchy fun fact connecting Scrabble words.\n\n' +
+              'FORMAT:\n' +
+              '- 1-2 sentences MAX. Be brief.\n' +
+              '- Wrap words in **CAPS** (e.g., **CAKE**)\n' +
+              '- Just the fact, no preamble or labels\n\n' +
+              'GOOD CONNECTIONS: etymology, history, science, pop culture, wordplay, thematic links.\n\n' +
+              'EXAMPLES OF GOOD OUTPUT:\n\n' +
+              'Words: RIVER, BANK\n' +
+              '→ **BANK** originally meant "riverbank"—financial **BANK**s got their name from money-changers working by the **RIVER**.\n\n' +
+              'Words: PIZZA, QUEEN\n' +
+              '→ The Margherita **PIZZA** was named after **QUEEN** Margherita of Italy in 1889.\n\n' +
+              'Words: GOLF, TEA, CUP\n' +
+              '→ The **GOLF** tee got its name from the letter T, and **TEA** time tradition gave us the **CUP** as a unit of measurement.\n\n' +
+              'Words: ZEN, AXE\n' +
+              '→ **ZEN** monks historically used **AXE**s to chop wood as a form of moving meditation.\n\n' +
+              'Words: QI, JOKE\n' +
+              '→ In traditional Chinese medicine, laughter is believed to stimulate **QI** flow—making a good **JOKE** literally energizing.\n\n' +
+              'BAD (avoid these):\n' +
+              '- "Both words have letters" (too obvious)\n' +
+              '- Made-up etymology or fake history\n' +
+              '- Rambling multi-sentence explanations\n' +
+              '- "Imagine if..." hypothetical scenarios'
           },
           {
             role: 'user',
-            content:
-              `Words played: ${wordsList}\n\n` +
-              'Find a genuine connection or interesting fact that ties these words together. Use the actual words in your response.'
+            content: `Words: ${wordsList}`
           }
         ],
         reasoning: { enabled: false },
-        max_tokens: 125,
+        max_tokens: 150,
         temperature: 0.4
       })
     });
