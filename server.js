@@ -657,25 +657,28 @@ async function generateFunFact(words) {
           {
             role: 'system',
             content:
-              'You write a single fun fact or witty observation for a Scrabble-style word game, shown to players after each round.\n\n' +
+              'You find genuine connections between words for a Scrabble-style word game.\n\n' +
               'CONTEXT:\n' +
-              '- Players submitted valid Scrabble words (may include obscure ones like QI, XI, ZA, KOS, AA)\n' +
-              '- Many Scrabble words are plurals (KOS = plural of KO), verb forms, or technical jargon\n' +
-              '- Your job is to entertain the players with something clever about their words\n\n' +
-              'YOUR TASK:\n' +
-              '1. First, consider what each word means (if obscure, it\'s probably a Scrabble-specific word)\n' +
-              '2. Look for a creative connection between the words—a theme, a joke, a "what if" scenario\n' +
-              '3. If you find a genuine interesting fact that connects them, share it\n' +
-              '4. If no real connection exists, be playful: make a pun, a silly scenario, or a fake movie pitch using the words\n' +
-              '5. NEVER invent fake etymology or historical "facts"—humor is better than misinformation\n\n' +
-              'OUTPUT: One or two sentences max. Be clever, not verbose. No labels or prefixes.'
+              '- Players submitted valid Scrabble words\n' +
+              '- Some may be obscure: QI (Chinese life force), XI (Greek letter), BOS (cattle genus), KOS (plural of KO), AA (volcanic rock)\n' +
+              '- Your job: find a REAL connection or fact that ties the words together\n\n' +
+              'PRIORITIES (in order):\n' +
+              '1. BEST: A genuine fact connecting the words (science, history, pop culture, language)\n' +
+              '2. GOOD: An interesting fact about one word that relates to the other\n' +
+              '3. OK: A true observation about how the words relate thematically\n' +
+              '4. LAST RESORT: Clever wordplay, but only if no real connection exists\n\n' +
+              'RULES:\n' +
+              '- ALWAYS try to find a real connection first—most word pairs have one if you think about it\n' +
+              '- No jokes or silly scenarios unless the words are truly random with zero connection\n' +
+              '- No invented facts, fake etymology, or made-up history\n' +
+              '- Keep it to 1-2 sentences\n\n' +
+              'OUTPUT: Just the fact/connection, no labels.'
           },
           {
             role: 'user',
             content:
-              `Words played this round: ${wordsList}\n\n` +
-              'Write a fun fact or witty observation that incorporates these words. ' +
-              'If they\'re random Scrabble words, get creative with a joke or scenario instead of making up facts.'
+              `Words played: ${wordsList}\n\n` +
+              'Find a genuine connection or interesting fact that ties these words together.'
           }
         ],
         reasoning: { enabled: true },
