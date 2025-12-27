@@ -44,11 +44,18 @@ try {
   console.error('Failed to load dictionary:', err.message);
 }
 
-// Word validation API
+// Word validation API (legacy - client now validates locally)
 app.get('/api/validate/:word', (req, res) => {
   const word = (req.params.word || '').toUpperCase().trim();
   const isValid = dictionary.has(word);
   res.json({ word, isValid, dictionarySize: dictionary.size });
+});
+
+// Serve dictionary for client-side validation (cached heavily)
+app.get('/api/dictionary', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+  res.type('text/plain');
+  res.sendFile(path.join(__dirname, 'data', 'words.txt'));
 });
 
 // Fun fact API - generates a fun fact based on words played in the round
@@ -770,17 +777,22 @@ function revealResults(lobby) {
     funFact: null, // Will be sent separately
   });
   
+  // Log detailed results including validity
+  console.log(`Round ${lobby.roundNumber} results for lobby ${lobby.code}:`,
+    results.map(r => `${r.name}: ${r.word} (${r.score}pts, valid=${!r.isInvalid}, noSub=${r.noSubmission})`).join(', '));
+
   // Generate and broadcast fun fact asynchronously
   if (validWords.length > 0) {
+    console.log(`Generating fun fact for words: [${validWords.join(', ')}]`);
     generateFunFact(validWords).then(funFact => {
       if (funFact) {
+        console.log(`Fun fact generated for [${validWords.join(', ')}]: "${funFact.substring(0, 50)}..."`);
         broadcastToLobby(lobby, 'game:funFact', { funFact });
       }
     });
+  } else {
+    console.log(`No valid words for fun fact in round ${lobby.roundNumber}`);
   }
-  
-  console.log(`Round ${lobby.roundNumber} results for lobby ${lobby.code}:`, 
-    results.map(r => `${r.name}: ${r.word} (${r.score}pts, ${r.pointsEarned} earned)`).join(', '));
 }
 
 // Health check endpoint (keeps Render from sleeping as fast)

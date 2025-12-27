@@ -1820,13 +1820,37 @@
     // STATE
     // ========================================
     const STORAGE_KEY = 'scrabbleHoldem_session';
-    
+
     let socket;
     let session = loadSession();
     let currentState = null;
     let selectedDice = [];
     let currentSubmission = null;
     let hasSubmitted = false;
+
+    // Client-side dictionary for instant word validation
+    let dictionary = new Set();
+    let dictionaryLoaded = false;
+
+    async function loadDictionary() {
+      try {
+        const response = await fetch('/api/dictionary');
+        const text = await response.text();
+        text.split('\n').forEach(word => {
+          const cleaned = word.trim().toUpperCase();
+          if (cleaned.length >= 2) {
+            dictionary.add(cleaned);
+          }
+        });
+        dictionaryLoaded = true;
+        console.log(`Dictionary loaded: ${dictionary.size} words`);
+      } catch (err) {
+        console.error('Failed to load dictionary:', err);
+      }
+    }
+
+    // Start loading dictionary immediately
+    loadDictionary();
     
     // ========================================
     // DOM ELEMENTS
@@ -2246,9 +2270,7 @@
       return selectedDice.some(id => id.startsWith('player-'));
     }
     
-    let validationTimeout = null;
-    
-    async function validateWord(word) {
+    function validateWord(word) {
       if (!word || word.length < 2) {
         elements.wordText.textContent = word || '';
         if (word && word.length === 1) {
@@ -2261,34 +2283,29 @@
         updateSubmitButton(false);
         return;
       }
-      
+
       elements.wordText.textContent = word;
-      elements.wordStatus.textContent = '...';
-      elements.wordStatus.className = 'word-status checking';
-      
-      if (validationTimeout) clearTimeout(validationTimeout);
-      validationTimeout = setTimeout(async () => {
-        try {
-          const response = await fetch(`/api/validate/${encodeURIComponent(word)}`);
-          const result = await response.json();
-          
-          if (result.isValid) {
-            elements.wordStatus.textContent = '✓ Valid';
-            elements.wordStatus.className = 'word-status valid';
-            updateSubmitButton(true);
-            if (currentSubmission) currentSubmission.isValid = true;
-          } else {
-            elements.wordStatus.textContent = '✗ Invalid';
-            elements.wordStatus.className = 'word-status invalid';
-            updateSubmitButton(false);
-            if (currentSubmission) currentSubmission.isValid = false;
-          }
-        } catch (err) {
-          elements.wordStatus.textContent = '?';
-          elements.wordStatus.className = 'word-status';
+
+      // Instant local validation (no network round-trip)
+      if (dictionaryLoaded) {
+        const isValid = dictionary.has(word.toUpperCase());
+        if (isValid) {
+          elements.wordStatus.textContent = '✓ Valid';
+          elements.wordStatus.className = 'word-status valid';
+          updateSubmitButton(true);
+          if (currentSubmission) currentSubmission.isValid = true;
+        } else {
+          elements.wordStatus.textContent = '✗ Invalid';
+          elements.wordStatus.className = 'word-status invalid';
           updateSubmitButton(false);
+          if (currentSubmission) currentSubmission.isValid = false;
         }
-      }, 200);
+      } else {
+        // Dictionary still loading - show pending state
+        elements.wordStatus.textContent = '...';
+        elements.wordStatus.className = 'word-status checking';
+        updateSubmitButton(false);
+      }
     }
     
     function calculateScore() {
