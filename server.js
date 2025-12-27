@@ -686,8 +686,8 @@ async function generateFunFact(words) {
               'Find a genuine connection or interesting fact that ties these words together.'
           }
         ],
-        reasoning: { enabled: true },
-        max_tokens: 10000,
+        reasoning: { enabled: false },
+        max_tokens: 1000,
         temperature: 0.5
       })
     });
