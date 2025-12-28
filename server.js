@@ -657,7 +657,7 @@ async function generateFunFact(words) {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'nvidia/nemotron-3-nano-30b-a3b:free',
+        model: 'nvidia/nemotron-3-nano-30b-a3b:free', // google/gemini-2.0-flash-exp:free
         messages: [
           {
             role: 'system',
