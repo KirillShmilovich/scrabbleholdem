@@ -657,17 +657,18 @@ async function generateFunFact(words) {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'xiaomi/mimo-v2-flash:free',
+        model: 'google/gemini-2.0-flash-exp:free',
         messages: [
           {
             role: 'system',
             content:
-              'Generate a short, punchy fun fact connecting Scrabble words.\n\n' +
+              'Generate a short and punchy connection between a list of provided Scrabble words. The connection should be interesting and surprising. If the words are unrelated, find an unexpected link—the more surprising, the better.\n\n' +
+              'All provided words are valid Scrabble words and will be provided in all uppercase.\n\n' +
               'FORMAT:\n' +
-              '- 1-2 sentences MAX\n' +
-              '- Bold EVERY played word with **WORD** (uppercase)\n' +
-              '- Do NOT use italics\n' +
-              '- Just the fact, no preamble\n\n' +
+              '- Maximum of 1-2 sentences, keep it short and sweet\n' +
+              '- Bold EVERY word provided in the list with **WORD** (uppercase) in the response\n' +
+              '- Do NOT use italics in the response\n' +
+              '- Just the connection, no preamble or labels\n\n' +
               'EXAMPLES:\n\n' +
               'Words: RIVER, BANK\n' +
               '**BANK** originally meant "riverbank"—financial banks got their name from money-changers by the **RIVER**.\n\n' +
@@ -675,9 +676,21 @@ async function generateFunFact(words) {
               'The Margherita **PIZZA** was named after **QUEEN** Margherita of Italy in 1889.\n\n' +
               'Words: WIN, BINS\n' +
               'Ancient Greeks tossed dice into **BINS** to divine fate—a lucky throw meant you **WIN**.\n\n' +
-              'WRONG (missing bold, uses italics):\n' +
+              'Words: GOLF, TEA, CUP\n' +
+              'The **GOLF** tee comes from the letter T, while **TEA** time tradition gave us **CUP** as a measurement.\n\n' +
+              'Words: ZEN, AXE\n' +
+              '**ZEN** monks historically used **AXE**s to chop wood as a form of moving meditation.\n\n' +
+              'Words: QI, JOKE\n' +
+              'In traditional Chinese medicine, laughter is believed to stimulate **QI** flow—making a good **JOKE** literally energizing.\n\n' +
+              'WRONG EXAMPLES (missing bold, uses italics):\n' +
+              'Words: WIN, BINS\n' +
               '**WIN** was used in ancient dice games with *bins*.\n\n' +
-              'AVOID: obvious observations, made-up facts, long explanations.'
+              'AVOID:\n' +
+              '- Obvious observations\n' +
+              '- Made-up facts\n' +
+              '- Long explanations\n' +
+              '- Commenting on each word independently\n' +
+              '- Just saying the words have similar letters'
           },
           {
             role: 'user',
