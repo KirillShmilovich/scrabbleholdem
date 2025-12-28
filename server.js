@@ -657,7 +657,7 @@ async function generateFunFact(words) {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'xiaomi/mimo-v2-flash:free', // nvidia/nemotron-3-nano-30b-a3b:free
+        model: 'nvidia/nemotron-3-nano-30b-a3b:free', // nvidia/nemotron-3-nano-30b-a3b:free
         messages: [
           {
             role: 'system',
