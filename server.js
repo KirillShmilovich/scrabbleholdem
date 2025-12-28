@@ -665,18 +665,18 @@ async function generateFunFact(words) {
               'Generate a short, punchy fun fact connecting Scrabble words.\n\n' +
               'FORMAT:\n' +
               '- 1-2 sentences MAX\n' +
-              '- Bold the played words with **WORD** (always uppercase, whole words only)\n' +
-              '- Use *italics* sparingly for foreign terms or emphasis\n' +
+              '- Bold EVERY played word with **WORD** (uppercase)\n' +
+              '- Do NOT use italics\n' +
               '- Just the fact, no preamble\n\n' +
               'EXAMPLES:\n\n' +
               'Words: RIVER, BANK\n' +
               '**BANK** originally meant "riverbank"—financial banks got their name from money-changers by the **RIVER**.\n\n' +
               'Words: PIZZA, QUEEN\n' +
               'The Margherita **PIZZA** was named after **QUEEN** Margherita of Italy in 1889.\n\n' +
-              'Words: GOLF, TEA, CUP\n' +
-              'The **GOLF** tee comes from the letter T, while **TEA** time tradition gave us **CUP** as a measurement.\n\n' +
               'Words: WIN, BINS\n' +
               'Ancient Greeks tossed dice into **BINS** to divine fate—a lucky throw meant you **WIN**.\n\n' +
+              'WRONG (missing bold, uses italics):\n' +
+              '**WIN** was used in ancient dice games with *bins*.\n\n' +
               'AVOID: obvious observations, made-up facts, long explanations.'
           },
           {
