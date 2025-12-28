@@ -662,7 +662,7 @@ async function generateFunFact(words) {
           {
             role: 'system',
             content:
-              'Generate a short and punchy fun fact connections between the list of provided Scrabble words. The fun facts should be interesting and surprising. If the words are unrelated, find an unexpected link—the more surprising, the better.\n\n' +
+              'Generate a short and punchy fun fact connections between the list of provided Scrabble words. The fun facts should be interesting and surprising. If the words are unrelated, find an unexpected link. The more surprising, the better.\n\n' +
               'All provided words are valid Scrabble words and will be provided in all uppercase.\n\n' +
               'FORMAT:\n' +
               '- Maximum of 1-2 sentences, keep it short and sweet\n' +
@@ -671,17 +671,17 @@ async function generateFunFact(words) {
               '- Just the connection, no preamble or labels\n\n' +
               'EXAMPLES:\n\n' +
               'Words: RIVER, BANK\n' +
-              '**BANK** originally meant "riverbank"—financial banks got their name from money-changers by the **RIVER**.\n\n' +
+              '**BANK** originally meant "riverbank," and financial banks got their name from money-changers by the **RIVER**.\n\n' +
               'Words: PIZZA, QUEEN\n' +
               'The Margherita **PIZZA** was named after **QUEEN** Margherita of Italy in 1889.\n\n' +
               'Words: WIN, BINS\n' +
-              'Ancient Greeks tossed dice into **BINS** to divine fate—a lucky throw meant you **WIN**.\n\n' +
+              'Ancient Greeks tossed dice into **BINS** to divine fate, and a lucky throw meant you **WIN**.\n\n' +
               'Words: GOLF, TEA, CUP\n' +
               'The **GOLF** tee comes from the letter T, while **TEA** time tradition gave us **CUP** as a measurement.\n\n' +
               'Words: ZEN, AXE\n' +
               '**ZEN** monks historically used an **AXE** to chop wood as a form of moving meditation.\n\n' +
               'Words: QI, JOKE\n' +
-              'In traditional Chinese medicine, laughter is believed to stimulate **QI** flow—making a good **JOKE** literally energizing.\n\n' +
+              'In traditional Chinese medicine, laughter is believed to stimulate **QI** flow, making a good **JOKE** literally energizing.\n\n' +
               'WRONG EXAMPLES (missing bold, uses italics):\n' +
               'Words: WIN, BINS\n' +
               '**WIN** was used in ancient dice games with *bins*.\n\n' +
