@@ -1982,7 +1982,6 @@
     let currentSubmission = null;
     let hasSubmitted = false;
     let currentFunFact = null; // Track current fun fact for image generation
-    let currentFunFactWords = []; // Track words used in fun fact
 
     // Client-side dictionary for instant word validation
     let dictionary = new Set();
@@ -2733,7 +2732,6 @@
 
       // Reset image generation state
       currentFunFact = null;
-      currentFunFactWords = [];
       elements.generateImageBtn.classList.add('hidden');
       elements.generateImageBtn.disabled = false;
       elements.generateImageBtn.textContent = '🎨 Generate Image';
@@ -2806,7 +2804,7 @@
 
     elements.generateImageBtn.addEventListener('click', () => {
       if (!currentFunFact) return;
-      socket.emit('game:generateFunFactImage', { funFact: currentFunFact, words: currentFunFactWords });
+      socket.emit('game:generateFunFactImage', { funFact: currentFunFact });
     });
 
     elements.finalResultsBtn.addEventListener('click', () => {
@@ -3182,7 +3180,6 @@
         if (data.funFact) {
           elements.funFactText.innerHTML = renderMarkdown(data.funFact);
           currentFunFact = data.funFact;
-          currentFunFactWords = data.words || [];
           // Show generate image button for host
           if (currentState?.isHost) {
             elements.generateImageBtn.classList.remove('hidden');

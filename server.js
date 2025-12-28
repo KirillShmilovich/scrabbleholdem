@@ -887,16 +887,16 @@ function revealResults(lobby) {
     generateFunFact(validWords).then(funFact => {
       if (funFact) {
         console.log(`Fun fact generated for [${validWords.join(', ')}]: "${funFact.substring(0, 50)}..."`);
-        broadcastToLobby(lobby, 'game:funFact', { funFact, words: validWords });
+        broadcastToLobby(lobby, 'game:funFact', { funFact });
       } else {
         // Let client know fun fact failed so it can hide the loading state
         console.log(`Fun fact generation failed for [${validWords.join(', ')}]`);
-        broadcastToLobby(lobby, 'game:funFact', { funFact: null, words: validWords, failed: true });
+        broadcastToLobby(lobby, 'game:funFact', { funFact: null, failed: true });
       }
     });
   } else {
     console.log(`No valid words for fun fact in round ${lobby.roundNumber}`);
-    broadcastToLobby(lobby, 'game:funFact', { funFact: null, words: [], failed: true });
+    broadcastToLobby(lobby, 'game:funFact', { funFact: null, failed: true });
   }
 }
 
@@ -1230,11 +1230,10 @@ io.on('connection', (socket) => {
     const player = lobby.players.get(socket.visibleId);
     if (!player?.isHost) return;
 
-    const { funFact, words } = data;
+    const { funFact } = data;
     if (!funFact || typeof funFact !== 'string') return;
 
-    const wordList = Array.isArray(words) ? words : [];
-    console.log(`Host ${player.name} requesting fun fact image for lobby ${lobby.code} (words: ${wordList.join(', ')})`);
+    console.log(`Host ${player.name} requesting fun fact image for lobby ${lobby.code}`);
 
     // Notify all players that image is being generated
     broadcastToLobby(lobby, 'game:funFactImageGenerating', {});
@@ -1246,11 +1245,9 @@ io.on('connection', (socket) => {
     }
 
     try {
-      // Create image prompt emphasizing the words
+      // Create a concise image prompt from the fun fact
       const cleanFact = funFact.replace(/\*\*/g, '');
-      const imagePrompt = wordList.length > 0
-        ? `${cleanFact}\n\nThese scrabble words were used to generate this fact so make sure they are emphasized.\nWords: ${wordList.join(', ')}`
-        : cleanFact;
+      const imagePrompt = `${cleanFact}`;
 
       // Use flux-dev (cheaper than pro)
       const response = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions', {
