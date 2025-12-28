@@ -1186,8 +1186,11 @@
       color: var(--gold);
       font-weight: 700;
       font-style: normal;
-      letter-spacing: 0.08em;
-      margin: 0 0.15em;
+    }
+
+    .fun-fact-text em {
+      font-style: normal;
+      color: var(--cream);
     }
 
     .fun-fact-loading {
@@ -2058,8 +2061,11 @@
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
-      // Convert **text** to <strong>text</strong>
-      return escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      // Convert **text** to <strong> (must come before single *)
+      // Then convert *text* to <em>
+      return escaped
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>');
     }
 
     // ========================================

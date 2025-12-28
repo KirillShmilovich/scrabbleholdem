@@ -664,26 +664,20 @@ async function generateFunFact(words) {
             content:
               'Generate a short, punchy fun fact connecting Scrabble words.\n\n' +
               'FORMAT:\n' +
-              '- 1-2 sentences MAX. Be brief.\n' +
-              '- Wrap words in **CAPS** (e.g., **CAKE**)\n' +
-              '- Just the fact, no preamble or labels\n\n' +
-              'GOOD CONNECTIONS: etymology, history, science, pop culture, wordplay, thematic links.\n\n' +
-              'EXAMPLES OF GOOD OUTPUT:\n\n' +
+              '- 1-2 sentences MAX\n' +
+              '- Bold the played words with **WORD** (always uppercase, whole words only)\n' +
+              '- Use *italics* sparingly for foreign terms or emphasis\n' +
+              '- Just the fact, no preamble\n\n' +
+              'EXAMPLES:\n\n' +
               'Words: RIVER, BANK\n' +
-              '→ **BANK** originally meant "riverbank"—financial **BANK**s got their name from money-changers working by the **RIVER**.\n\n' +
+              '**BANK** originally meant "riverbank"—financial banks got their name from money-changers by the **RIVER**.\n\n' +
               'Words: PIZZA, QUEEN\n' +
-              '→ The Margherita **PIZZA** was named after **QUEEN** Margherita of Italy in 1889.\n\n' +
+              'The Margherita **PIZZA** was named after **QUEEN** Margherita of Italy in 1889.\n\n' +
               'Words: GOLF, TEA, CUP\n' +
-              '→ The **GOLF** tee got its name from the letter T, and **TEA** time tradition gave us the **CUP** as a unit of measurement.\n\n' +
-              'Words: ZEN, AXE\n' +
-              '→ **ZEN** monks historically used **AXE**s to chop wood as a form of moving meditation.\n\n' +
-              'Words: QI, JOKE\n' +
-              '→ In traditional Chinese medicine, laughter is believed to stimulate **QI** flow—making a good **JOKE** literally energizing.\n\n' +
-              'BAD (avoid these):\n' +
-              '- "Both words have letters" (too obvious)\n' +
-              '- Made-up etymology or fake history\n' +
-              '- Rambling multi-sentence explanations\n' +
-              '- "Imagine if..." hypothetical scenarios'
+              'The **GOLF** tee comes from the letter T, while **TEA** time tradition gave us **CUP** as a measurement.\n\n' +
+              'Words: WIN, BINS\n' +
+              'Ancient Greeks tossed dice into **BINS** to divine fate—a lucky throw meant you **WIN**.\n\n' +
+              'AVOID: obvious observations, made-up facts, long explanations.'
           },
           {
             role: 'user',
