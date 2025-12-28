@@ -1217,11 +1217,77 @@
       content: '';
       animation: funFactDots 1.5s infinite;
     }
-    
+
     @keyframes funFactDots {
       0%, 20% { content: '.'; }
       40% { content: '..'; }
       60%, 100% { content: '...'; }
+    }
+
+    .fun-fact-image-btn {
+      margin-top: var(--space-md);
+      margin-bottom: var(--space-lg);
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: 2px solid rgba(139, 92, 246, 0.6);
+      border-radius: 12px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .fun-fact-image-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #818cf8, #a78bfa);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+
+    .fun-fact-image-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .fun-fact-image-container {
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: var(--space-xl);
+      border-radius: 12px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .fun-fact-image-container.loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.08));
+      border: 1px solid rgba(139, 92, 246, 0.25);
+    }
+
+    .fun-fact-image-container.loaded {
+      display: block;
+    }
+
+    .fun-fact-image {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .fun-fact-image-loading {
+      color: var(--wood-light);
+      opacity: 0.6;
+      font-size: 0.85rem;
+    }
+
+    .fun-fact-image-loading::after {
+      content: '';
+      animation: funFactDots 1.5s infinite;
     }
     
     .waiting-for-host {
@@ -1849,7 +1915,15 @@
         <span class="fun-fact-loading">Generating</span>
       </div>
     </div>
-    
+
+    <!-- Generate Image Button (host only) -->
+    <button class="fun-fact-image-btn hidden" id="generateImageBtn">🎨 Generate Image</button>
+
+    <!-- Fun Fact Image -->
+    <div class="fun-fact-image-container" id="funFactImageContainer">
+      <span class="fun-fact-image-loading">Generating image</span>
+    </div>
+
     <!-- Host: Next Round or Final Results -->
     <button class="next-round-btn" id="nextRoundBtn">🎲 Next Round</button>
     <button class="next-round-btn" id="finalResultsBtn" style="display: none; background: linear-gradient(135deg, #8b5cf6, #7c3aed);">🏆 See Final Results</button>
@@ -1907,6 +1981,7 @@
     let selectedDice = [];
     let currentSubmission = null;
     let hasSubmitted = false;
+    let currentFunFact = null; // Track current fun fact for image generation
 
     // Client-side dictionary for instant word validation
     let dictionary = new Set();
@@ -1999,6 +2074,8 @@
       standingsList: document.getElementById('standingsList'),
       funFactSection: document.getElementById('funFactSection'),
       funFactText: document.getElementById('funFactText'),
+      generateImageBtn: document.getElementById('generateImageBtn'),
+      funFactImageContainer: document.getElementById('funFactImageContainer'),
       nextRoundBtn: document.getElementById('nextRoundBtn'),
       finalResultsBtn: document.getElementById('finalResultsBtn'),
       waitingForNextRound: document.getElementById('waitingForNextRound'),
@@ -2652,6 +2729,14 @@
       // Reset fun fact section to loading state
       elements.funFactText.innerHTML = '<span class="fun-fact-loading">Generating</span>';
       elements.funFactSection.style.display = 'flex';
+
+      // Reset image generation state
+      currentFunFact = null;
+      elements.generateImageBtn.classList.add('hidden');
+      elements.generateImageBtn.disabled = false;
+      elements.generateImageBtn.textContent = '🎨 Generate Image';
+      elements.funFactImageContainer.className = 'fun-fact-image-container';
+      elements.funFactImageContainer.innerHTML = '<span class="fun-fact-image-loading">Generating image</span>';
       elements.resultsRoundNumber.textContent = data.roundNumber;
       elements.resultsCurrentRound.textContent = data.roundNumber;
       elements.resultsTotalRounds.textContent = data.totalRounds;
@@ -2716,7 +2801,12 @@
       showOverlay('🎲 Rolling...', 'Next round starting');
       socket.emit('game:nextRound');
     });
-    
+
+    elements.generateImageBtn.addEventListener('click', () => {
+      if (!currentFunFact) return;
+      socket.emit('game:generateFunFactImage', { funFact: currentFunFact });
+    });
+
     elements.finalResultsBtn.addEventListener('click', () => {
       showOverlay('🏆 Calculating...', 'Final results');
       socket.emit('game:viewFinalResults');
@@ -3089,11 +3179,38 @@
       socket.on('game:funFact', (data) => {
         if (data.funFact) {
           elements.funFactText.innerHTML = renderMarkdown(data.funFact);
+          currentFunFact = data.funFact;
+          // Show generate image button for host
+          if (currentState?.isHost) {
+            elements.generateImageBtn.classList.remove('hidden');
+          }
         } else {
           elements.funFactSection.style.display = 'none';
         }
       });
-      
+
+      // Fun fact image generating (loading state)
+      socket.on('game:funFactImageGenerating', () => {
+        elements.generateImageBtn.disabled = true;
+        elements.generateImageBtn.textContent = '⏳ Generating...';
+        elements.funFactImageContainer.className = 'fun-fact-image-container loading';
+        elements.funFactImageContainer.innerHTML = '<span class="fun-fact-image-loading">Generating image</span>';
+      });
+
+      // Fun fact image generated
+      socket.on('game:funFactImage', (data) => {
+        elements.generateImageBtn.disabled = false;
+        elements.generateImageBtn.textContent = '🎨 Generate Image';
+        if (data.imageUrl) {
+          elements.funFactImageContainer.className = 'fun-fact-image-container loaded';
+          elements.funFactImageContainer.innerHTML = `<img class="fun-fact-image" src="${data.imageUrl}" alt="Generated image for fun fact">`;
+          // Hide the button after successful generation
+          elements.generateImageBtn.classList.add('hidden');
+        } else {
+          elements.funFactImageContainer.className = 'fun-fact-image-container';
+        }
+      });
+
       // Final results (after all rounds)
       socket.on('game:finalResults', (data) => {
         showGameOver(data);

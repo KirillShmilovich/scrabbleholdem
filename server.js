@@ -148,6 +148,62 @@ app.post('/api/funfact', async (req, res) => {
   }
 });
 
+// Image generation API using Replicate
+app.post('/api/generate-image', async (req, res) => {
+  const { prompt } = req.body;
+
+  if (!prompt || typeof prompt !== 'string') {
+    return res.status(400).json({ error: 'No prompt provided' });
+  }
+
+  const apiToken = process.env.REPLICATE_API_TOKEN;
+  if (!apiToken) {
+    return res.status(500).json({ error: 'Replicate API token not configured' });
+  }
+
+  try {
+    const response = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'wait', // Wait for result instead of polling
+      },
+      body: JSON.stringify({
+        input: {
+          prompt: prompt,
+          go_fast: true,
+          guidance: 3.5,
+          megapixels: '1',
+          num_outputs: 1,
+          aspect_ratio: '1:1',
+          output_format: 'webp',
+          output_quality: 80,
+          num_inference_steps: 28,
+        }
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('Replicate API error:', data.error);
+      return res.status(500).json({ error: 'Image generation failed' });
+    }
+
+    if (data.status === 'succeeded' && data.output && data.output.length > 0) {
+      res.json({ imageUrl: data.output[0] });
+    } else {
+      console.error('Unexpected Replicate response:', data);
+      res.status(500).json({ error: 'Image generation failed' });
+    }
+
+  } catch (err) {
+    console.error('Image generation error:', err);
+    res.status(500).json({ error: 'Failed to generate image' });
+  }
+});
+
 // Word definition API using OpenRouter
 app.get('/api/define/:word', async (req, res) => {
   const word = (req.params.word || '').toLowerCase().trim();
@@ -1166,6 +1222,72 @@ io.on('connection', (socket) => {
     }
   });
   
+  // Generate fun fact image (host only)
+  socket.on('game:generateFunFactImage', async (data) => {
+    const lobby = lobbies.get(socket.lobbyCode);
+    if (!lobby) return;
+
+    const player = lobby.players.get(socket.visibleId);
+    if (!player?.isHost) return;
+
+    const { funFact } = data;
+    if (!funFact || typeof funFact !== 'string') return;
+
+    console.log(`Host ${player.name} requesting fun fact image for lobby ${lobby.code}`);
+
+    // Notify all players that image is being generated
+    broadcastToLobby(lobby, 'game:funFactImageGenerating', {});
+
+    const apiToken = process.env.REPLICATE_API_TOKEN;
+    if (!apiToken) {
+      broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'API not configured' });
+      return;
+    }
+
+    try {
+      // Create a concise image prompt from the fun fact
+      const cleanFact = funFact.replace(/\*\*/g, '');
+      const imagePrompt = `${cleanFact}`;
+
+      // Use flux-dev (cheaper than pro)
+      const response = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'wait',
+        },
+        body: JSON.stringify({
+          input: {
+            prompt: imagePrompt,
+            go_fast: true,
+            guidance: 3.5,
+            megapixels: '0.25',
+            num_outputs: 1,
+            aspect_ratio: '1:1',
+            output_format: 'webp',
+            output_quality: 80,
+            prompt_strength: 0.8,
+            num_inference_steps: 28,
+          }
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'succeeded' && result.output && result.output.length > 0) {
+        console.log(`Fun fact image generated for lobby ${lobby.code}`);
+        broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: result.output[0] });
+      } else {
+        console.error('Image generation failed:', result);
+        broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'Generation failed' });
+      }
+    } catch (err) {
+      console.error('Image generation error:', err);
+      broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'Generation failed' });
+    }
+  });
+
   // View final results (host only, after last round)
   socket.on('game:viewFinalResults', () => {
     const lobby = lobbies.get(socket.lobbyCode);
