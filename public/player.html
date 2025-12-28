@@ -594,9 +594,24 @@
     .community-dice-row {
       display: flex;
       justify-content: center;
-      gap: var(--space-xs);
+      gap: var(--space-md);
       flex-wrap: wrap;
-      margin-bottom: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+
+    .community-dice-row .die {
+      width: 54px;
+      height: 54px;
+    }
+
+    .community-dice-row .die .die-letter {
+      font-size: 1.8rem;
+    }
+
+    .community-dice-row .die .die-points {
+      font-size: 0.6rem;
+      bottom: 4px;
+      right: 6px;
     }
     
     /* Modifier Banner */
@@ -655,7 +670,7 @@
       width: 48px;
       height: 48px;
       background: linear-gradient(145deg, #fffef9 0%, var(--die-bg) 100%);
-      border: 3px solid var(--die-border);
+      border: 2px solid rgba(201, 166, 107, 0.4);
       border-radius: 10px;
       display: flex;
       flex-direction: column;
@@ -714,13 +729,13 @@
     }
     
     .die.has-modifier {
-      border-color: var(--modifier-color);
+      border: 3px solid var(--modifier-color);
       box-shadow: 0 0 0 2px var(--modifier-color), 0 4px 8px var(--die-shadow);
     }
     
     .die.selected {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 3px var(--gold), 0 0 12px rgba(212, 175, 55, 0.5);
+      border: 3px solid var(--gold);
+      box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(212, 175, 55, 0.5);
       transform: translateY(-3px);
       background: linear-gradient(145deg, #fffef0 0%, #fff9e6 100%);
     }
@@ -731,9 +746,8 @@
     
     .die-order {
       position: absolute;
-      top: -8px;
-      left: 50%;
-      transform: translateX(-50%);
+      top: -6px;
+      right: -6px;
       background: var(--gold);
       color: var(--felt-dark);
       font-size: 0.6rem;
