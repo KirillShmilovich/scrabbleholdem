@@ -657,12 +657,12 @@ async function generateFunFact(words) {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: 'nvidia/nemotron-3-nano-30b-a3b:free', // google/gemini-2.0-flash-exp:free
+        model: 'xiaomi/mimo-v2-flash:free', // nvidia/nemotron-3-nano-30b-a3b:free
         messages: [
           {
             role: 'system',
             content:
-              'Generate a short and punchy connection between a list of provided Scrabble words. The connection should be interesting and surprising. If the words are unrelated, find an unexpected link—the more surprising, the better.\n\n' +
+              'Generate a short and punchy fun fact connections between the list of provided Scrabble words. The fun facts should be interesting and surprising. If the words are unrelated, find an unexpected link—the more surprising, the better.\n\n' +
               'All provided words are valid Scrabble words and will be provided in all uppercase.\n\n' +
               'FORMAT:\n' +
               '- Maximum of 1-2 sentences, keep it short and sweet\n' +
