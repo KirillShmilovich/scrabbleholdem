@@ -679,7 +679,7 @@ async function generateFunFact(words) {
               'Words: GOLF, TEA, CUP\n' +
               'The **GOLF** tee comes from the letter T, while **TEA** time tradition gave us **CUP** as a measurement.\n\n' +
               'Words: ZEN, AXE\n' +
-              '**ZEN** monks historically used **AXE**s to chop wood as a form of moving meditation.\n\n' +
+              '**ZEN** monks historically used an **AXE** to chop wood as a form of moving meditation.\n\n' +
               'Words: QI, JOKE\n' +
               'In traditional Chinese medicine, laughter is believed to stimulate **QI** flow—making a good **JOKE** literally energizing.\n\n' +
               'WRONG EXAMPLES (missing bold, uses italics):\n' +
