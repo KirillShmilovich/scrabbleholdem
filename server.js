@@ -1249,8 +1249,8 @@ io.on('connection', (socket) => {
       const cleanFact = funFact.replace(/\*\*/g, '');
       const imagePrompt = `${cleanFact}`;
 
-      // Use flux-dev (cheaper than pro)
-      const response = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions', {
+      // Use flux-schnell (fastest/cheapest)
+      const response = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
@@ -1261,14 +1261,13 @@ io.on('connection', (socket) => {
           input: {
             prompt: imagePrompt,
             go_fast: true,
-            guidance: 3.5,
-            megapixels: '0.25',
+            megapixels: '1',
             num_outputs: 1,
             aspect_ratio: '1:1',
             output_format: 'webp',
             output_quality: 80,
-            prompt_strength: 0.8,
-            num_inference_steps: 28,
+            num_inference_steps: 4,
+            disable_safety_checker: true,
           }
         })
       });
