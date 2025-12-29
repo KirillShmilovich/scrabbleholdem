@@ -148,7 +148,7 @@ app.post('/api/funfact', async (req, res) => {
   }
 });
 
-// Image generation API using Replicate
+// Image generation API using Hugging Face Inference
 app.post('/api/generate-image', async (req, res) => {
   const { prompt } = req.body;
 
@@ -156,47 +156,34 @@ app.post('/api/generate-image', async (req, res) => {
     return res.status(400).json({ error: 'No prompt provided' });
   }
 
-  const apiToken = process.env.REPLICATE_API_TOKEN;
+  const apiToken = process.env.HF_TOKEN;
   if (!apiToken) {
-    return res.status(500).json({ error: 'Replicate API token not configured' });
+    return res.status(500).json({ error: 'HF_TOKEN not configured' });
   }
 
   try {
-    const response = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions', {
+    const response = await fetch('https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
-        'Prefer': 'wait', // Wait for result instead of polling
       },
-      body: JSON.stringify({
-        input: {
-          prompt: prompt,
-          go_fast: true,
-          guidance: 3.5,
-          megapixels: '1',
-          num_outputs: 1,
-          aspect_ratio: '1:1',
-          output_format: 'webp',
-          output_quality: 80,
-          num_inference_steps: 28,
-        }
-      })
+      body: JSON.stringify({ inputs: prompt })
     });
 
-    const data = await response.json();
-
-    if (data.error) {
-      console.error('Replicate API error:', data.error);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('HF Inference API error:', response.status, errorText);
       return res.status(500).json({ error: 'Image generation failed' });
     }
 
-    if (data.status === 'succeeded' && data.output && data.output.length > 0) {
-      res.json({ imageUrl: data.output[0] });
-    } else {
-      console.error('Unexpected Replicate response:', data);
-      res.status(500).json({ error: 'Image generation failed' });
-    }
+    // Response is binary image data
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+    const contentType = response.headers.get('content-type') || 'image/png';
+    const dataUrl = `data:${contentType};base64,${base64}`;
+
+    res.json({ imageUrl: dataUrl });
 
   } catch (err) {
     console.error('Image generation error:', err);
@@ -1238,7 +1225,7 @@ io.on('connection', (socket) => {
     // Notify all players that image is being generated
     broadcastToLobby(lobby, 'game:funFactImageGenerating', {});
 
-    const apiToken = process.env.REPLICATE_API_TOKEN;
+    const apiToken = process.env.HF_TOKEN;
     if (!apiToken) {
       broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'API not configured' });
       return;
@@ -1249,38 +1236,31 @@ io.on('connection', (socket) => {
       const cleanFact = funFact.replace(/\*\*/g, '');
       const imagePrompt = `${cleanFact}`;
 
-      // Use flux-schnell (fastest/cheapest)
-      const response = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions', {
+      // Use Hugging Face Inference API with FLUX.1-schnell
+      const response = await fetch('https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json',
-          'Prefer': 'wait',
         },
-        body: JSON.stringify({
-          input: {
-            prompt: imagePrompt,
-            go_fast: true,
-            megapixels: '1',
-            num_outputs: 1,
-            aspect_ratio: '1:1',
-            output_format: 'webp',
-            output_quality: 80,
-            num_inference_steps: 4,
-            disable_safety_checker: true,
-          }
-        })
+        body: JSON.stringify({ inputs: imagePrompt })
       });
 
-      const result = await response.json();
-
-      if (result.status === 'succeeded' && result.output && result.output.length > 0) {
-        console.log(`Fun fact image generated for lobby ${lobby.code}`);
-        broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: result.output[0] });
-      } else {
-        console.error('Image generation failed:', result);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('HF Inference API error:', response.status, errorText);
         broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'Generation failed' });
+        return;
       }
+
+      // Response is binary image data - convert to base64 data URL
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const contentType = response.headers.get('content-type') || 'image/png';
+      const dataUrl = `data:${contentType};base64,${base64}`;
+
+      console.log(`Fun fact image generated for lobby ${lobby.code}`);
+      broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: dataUrl });
     } catch (err) {
       console.error('Image generation error:', err);
       broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'Generation failed' });
