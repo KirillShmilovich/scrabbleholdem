@@ -507,6 +507,8 @@ function createLobby(hostSocketId, hostName) {
     revealed: false,
     roundHistory: [], // Array of round results for end-game summary
     deleteTimeout: null, // Timeout for deleting empty lobby
+    currentFunFact: null, // Current round's fun fact (for rejoining players)
+    currentFunFactImage: null, // Current round's fun fact image URL (for rejoining players)
   };
   
   // Add host as first player
@@ -598,6 +600,8 @@ function startNewRound(lobby) {
   lobby.modifier = rollModifier();
   lobby.playerSubmissions.clear();
   lobby.revealed = false;
+  lobby.currentFunFact = null;
+  lobby.currentFunFactImage = null;
   lobby.timerRemaining = lobby.settings.timerDuration;
   lobby.timerHalved = false;
   
@@ -948,6 +952,7 @@ function revealResults(lobby) {
     generateFunFact(validWords).then(funFact => {
       if (funFact) {
         console.log(`Fun fact generated for [${validWords.join(', ')}]: "${funFact.substring(0, 50)}..."`);
+        lobby.currentFunFact = funFact;
         broadcastToLobby(lobby, 'game:funFact', { funFact });
       } else {
         // Let client know fun fact failed so it can hide the loading state
@@ -1116,12 +1121,29 @@ io.on('connection', (socket) => {
     // Send appropriate state based on game status
     if (isReturningPlayer && lobby.status === 'playing') {
       // Player returning mid-game - send them directly to game screen
-      socket.emit('lobby:rejoined', {
+      const rejoinData = {
         lobbyCode: lobby.code,
         visibleId,
         state: getPlayerState(lobby, visibleId),
         gameInProgress: true,
-      });
+      };
+
+      // If round results are revealed, include them so client shows results screen
+      if (lobby.revealed && lobby.roundHistory.length > 0) {
+        const lastRound = lobby.roundHistory[lobby.roundHistory.length - 1];
+        const isLastRound = lobby.roundNumber >= lobby.settings.totalRounds;
+        rejoinData.roundResults = {
+          roundNumber: lastRound.roundNumber,
+          totalRounds: lobby.settings.totalRounds,
+          results: lastRound.results,
+          standings: lastRound.standings,
+          isLastRound,
+          funFact: lobby.currentFunFact,
+          funFactImage: lobby.currentFunFactImage,
+        };
+      }
+
+      socket.emit('lobby:rejoined', rejoinData);
     } else {
       // Normal lobby join
       socket.emit('lobby:joined', {
@@ -1347,6 +1369,7 @@ io.on('connection', (socket) => {
       const dataUrl = `data:image/png;base64,${responseData.result.image}`;
 
       console.log(`Fun fact image generated for lobby ${lobby.code}`);
+      lobby.currentFunFactImage = dataUrl;
       broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: dataUrl, prompt: imagePrompt });
     } catch (err) {
       console.error('Image generation error:', err);

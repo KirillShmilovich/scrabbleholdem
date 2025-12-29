@@ -3024,13 +3024,44 @@
         setUrlLobbyCode(data.lobbyCode); // Update URL to /play/CODE
         currentState = data.state;
         currentState.isHost = data.state.player?.isHost || data.state.isHost;
-        
+
         if (data.gameInProgress) {
-          // Jump directly into the game
-          updateGameScreen(data.state);
           hideOverlay();
-          showScreen('game');
-          console.log('Rejoined game in progress');
+          // Check if we're in the round results phase
+          if (data.roundResults) {
+            showResults(data.roundResults);
+            // Display fun fact if available from rejoin data
+            if (data.roundResults.funFact) {
+              elements.funFactText.innerHTML = renderMarkdown(data.roundResults.funFact);
+              currentFunFact = data.roundResults.funFact;
+              elements.funFactSection.style.display = 'flex';
+              // Show/hide generate image button based on host status and whether image exists
+              if (data.roundResults.funFactImage) {
+                // Image already generated - display it
+                elements.funFactImageContainer.className = 'fun-fact-image-container loaded';
+                elements.funFactImageContainer.innerHTML = `<img class="fun-fact-image" src="${data.roundResults.funFactImage}" alt="Generated image for fun fact">`;
+                elements.generateImageBtn.classList.add('hidden');
+              } else if (currentState?.isHost) {
+                // No image yet - host can generate one
+                elements.generateImageBtn.classList.remove('hidden');
+                elements.funFactImageContainer.className = 'fun-fact-image-container';
+                elements.funFactImageContainer.innerHTML = '';
+              } else {
+                elements.generateImageBtn.classList.add('hidden');
+                elements.funFactImageContainer.className = 'fun-fact-image-container';
+                elements.funFactImageContainer.innerHTML = '';
+              }
+            } else {
+              // No fun fact available
+              elements.funFactSection.style.display = 'none';
+            }
+            console.log('Rejoined game at round results');
+          } else {
+            // Jump directly into the game
+            updateGameScreen(data.state);
+            showScreen('game');
+            console.log('Rejoined game in progress');
+          }
         } else {
           // Normal waiting room
           settingsRounds = data.state.settings.totalRounds;
