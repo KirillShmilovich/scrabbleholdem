@@ -1289,7 +1289,18 @@
       content: '';
       animation: funFactDots 1.5s infinite;
     }
-    
+
+    .fun-fact-image-prompt {
+      margin: 0;
+      padding: 10px 12px;
+      font-size: 0.7rem;
+      color: var(--wood-light);
+      opacity: 0.5;
+      font-style: italic;
+      line-height: 1.4;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
     .waiting-for-host {
       color: var(--wood-light);
       opacity: 0.8;
@@ -3203,7 +3214,8 @@
         elements.generateImageBtn.textContent = '🎨 Generate Image';
         if (data.imageUrl) {
           elements.funFactImageContainer.className = 'fun-fact-image-container loaded';
-          elements.funFactImageContainer.innerHTML = `<img class="fun-fact-image" src="${data.imageUrl}" alt="Generated image for fun fact">`;
+          const promptCaption = data.prompt ? `<p class="fun-fact-image-prompt">${data.prompt}</p>` : '';
+          elements.funFactImageContainer.innerHTML = `<img class="fun-fact-image" src="${data.imageUrl}" alt="Generated image for fun fact">${promptCaption}`;
           // Hide the button after successful generation
           elements.generateImageBtn.classList.add('hidden');
         } else {
