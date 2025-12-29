@@ -148,56 +148,6 @@ app.post('/api/funfact', async (req, res) => {
   }
 });
 
-// Image generation API using Hugging Face Inference
-app.post('/api/generate-image', async (req, res) => {
-  const { prompt } = req.body;
-
-  if (!prompt || typeof prompt !== 'string') {
-    return res.status(400).json({ error: 'No prompt provided' });
-  }
-
-  const apiToken = process.env.HF_TOKEN;
-  if (!apiToken) {
-    return res.status(500).json({ error: 'HF_TOKEN not configured' });
-  }
-
-  try {
-    const response = await fetch('https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: {
-          num_inference_steps: 4,
-          width: 512,
-          height: 512,
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('HF Inference API error:', response.status, errorText);
-      return res.status(500).json({ error: 'Image generation failed' });
-    }
-
-    // Response is binary image data
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    const contentType = response.headers.get('content-type') || 'image/png';
-    const dataUrl = `data:${contentType};base64,${base64}`;
-
-    res.json({ imageUrl: dataUrl });
-
-  } catch (err) {
-    console.error('Image generation error:', err);
-    res.status(500).json({ error: 'Failed to generate image' });
-  }
-});
-
 // Word definition API using OpenRouter
 app.get('/api/define/:word', async (req, res) => {
   const word = (req.params.word || '').toLowerCase().trim();
@@ -1232,8 +1182,9 @@ io.on('connection', (socket) => {
     // Notify all players that image is being generated
     broadcastToLobby(lobby, 'game:funFactImageGenerating', {});
 
-    const apiToken = process.env.HF_TOKEN;
-    if (!apiToken) {
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    if (!apiToken || !accountId) {
       broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'API not configured' });
       return;
     }
@@ -1243,35 +1194,36 @@ io.on('connection', (socket) => {
       const cleanFact = funFact.replace(/\*\*/g, '');
       const imagePrompt = `${cleanFact}`;
 
-      // Use Hugging Face Inference API with FLUX.1-schnell
-      const response = await fetch('https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell', {
+      // Use Cloudflare AI with FLUX.1-schnell
+      const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          inputs: imagePrompt,
-          parameters: {
-            num_inference_steps: 4,
-            width: 512,
-            height: 512,
-          }
+          prompt: imagePrompt,
+          steps: 4,
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('HF Inference API error:', response.status, errorText);
+        console.error('Cloudflare AI API error:', response.status, errorText);
         broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'Generation failed' });
         return;
       }
 
-      // Response is binary image data - convert to base64 data URL
-      const arrayBuffer = await response.arrayBuffer();
-      const base64 = Buffer.from(arrayBuffer).toString('base64');
-      const contentType = response.headers.get('content-type') || 'image/png';
-      const dataUrl = `data:${contentType};base64,${base64}`;
+      const responseData = await response.json();
+
+      if (!responseData.result?.image) {
+        console.error('Cloudflare AI: No image in response', responseData);
+        broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: null, error: 'No image returned' });
+        return;
+      }
+
+      // Response contains base64 image
+      const dataUrl = `data:image/png;base64,${responseData.result.image}`;
 
       console.log(`Fun fact image generated for lobby ${lobby.code}`);
       broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: dataUrl });
