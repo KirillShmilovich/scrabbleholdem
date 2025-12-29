@@ -168,7 +168,14 @@ app.post('/api/generate-image', async (req, res) => {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ inputs: prompt })
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          num_inference_steps: 4,
+          width: 512,
+          height: 512,
+        }
+      })
     });
 
     if (!response.ok) {
@@ -1243,7 +1250,14 @@ io.on('connection', (socket) => {
           'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ inputs: imagePrompt })
+        body: JSON.stringify({
+          inputs: imagePrompt,
+          parameters: {
+            num_inference_steps: 4,
+            width: 512,
+            height: 512,
+          }
+        })
       });
 
       if (!response.ok) {
