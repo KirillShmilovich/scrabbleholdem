@@ -2555,8 +2555,21 @@
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
               modifierStatus = `✓ ${modDie.letter} is in MIDDLE → ×${modifier.multiplier}`;
+            } else if (modifier.position === 'second' && modifierPosition === 1) {
+              modifierApplies = true;
+              modifierMultiplier = modifier.multiplier;
+              modifierStatus = `✓ ${modDie.letter} is 2nd letter → ×${modifier.multiplier}`;
+            } else if (modifier.position === 'penultimate' && modifierPosition === wordLength - 2 && wordLength >= 2) {
+              modifierApplies = true;
+              modifierMultiplier = modifier.multiplier;
+              modifierStatus = `✓ ${modDie.letter} is 2nd-to-last → ×${modifier.multiplier}`;
+            } else if (modifier.position === 'center' && wordLength % 2 === 1 && modifierPosition === Math.floor(wordLength / 2)) {
+              modifierApplies = true;
+              modifierMultiplier = modifier.multiplier;
+              modifierStatus = `✓ ${modDie.letter} is CENTER → ×${modifier.multiplier}`;
             } else {
-              modifierStatus = `✗ ${modDie.letter} not in ${modifier.position} position`;
+              const posNames = { start: 'first', end: 'last', middle: 'middle', second: '2nd', penultimate: '2nd-to-last', center: 'center (odd-length word)' };
+              modifierStatus = `✗ ${modDie.letter} not in ${posNames[modifier.position] || modifier.position} position`;
             }
             break;
             
@@ -2594,7 +2607,7 @@
             const prevDie = modifierPosition > 0 ? getDieData(selectedDice[modifierPosition - 1]) : null;
             const nextDie = modifierPosition < wordLength - 1 ? getDieData(selectedDice[modifierPosition + 1]) : null;
             const hasVowelNeighbor = (prevDie && isVowel(prevDie.letter)) || (nextDie && isVowel(nextDie.letter));
-            
+
             if (hasVowelNeighbor) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
@@ -2603,7 +2616,28 @@
               modifierStatus = `✗ ${modDie.letter} not next to a vowel`;
             }
             break;
-            
+
+          case 'composition':
+            const vowelCount = wordDice.filter(wd => isVowel(wd.die.letter)).length;
+            const consonantCount = wordLength - vowelCount;
+
+            if (modifier.compositionType === 'balanced' && vowelCount === consonantCount) {
+              modifierApplies = true;
+              modifierBonusPoints = modifier.bonus;
+              modifierStatus = `✓ Balanced: ${vowelCount}V = ${consonantCount}C → +${modifier.bonus}`;
+            } else if (modifier.compositionType === 'vowelRich' && vowelCount > consonantCount) {
+              modifierApplies = true;
+              modifierBonusPoints = modifier.bonus;
+              modifierStatus = `✓ Vowel Rich: ${vowelCount}V > ${consonantCount}C → +${modifier.bonus}`;
+            } else {
+              if (modifier.compositionType === 'balanced') {
+                modifierStatus = `✗ Not balanced: ${vowelCount}V ≠ ${consonantCount}C`;
+              } else {
+                modifierStatus = `✗ Not vowel-rich: ${vowelCount}V ≤ ${consonantCount}C`;
+              }
+            }
+            break;
+
           case 'bonus':
             modifierApplies = true;
             modifierBonusPoints = modifier.bonus;
