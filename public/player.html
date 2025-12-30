@@ -1385,9 +1385,6 @@
       display: flex;
       flex-direction: column;
       gap: var(--space-md);
-      max-height: 350px;
-      overflow-y: auto;
-      padding-right: var(--space-sm);
     }
     
     .round-history-item {
@@ -1618,7 +1615,62 @@
       text-align: right;
       font-weight: 600;
     }
-    
+
+    /* Round History Fun Fact */
+    .rh-fun-fact {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+      margin-top: var(--space-md);
+      padding: var(--space-sm) var(--space-md);
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.08));
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: 8px;
+    }
+
+    .rh-fun-fact-icon {
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      opacity: 0.85;
+    }
+
+    .rh-fun-fact-text {
+      color: var(--gold-light);
+      font-size: 0.8rem;
+      line-height: 1.5;
+      font-style: italic;
+    }
+
+    .rh-fun-fact-text strong {
+      color: var(--gold);
+      font-weight: 700;
+      font-style: normal;
+    }
+
+    /* Round History Image */
+    .rh-image-container {
+      margin-top: var(--space-md);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .rh-image {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .rh-image-prompt {
+      font-size: 0.7rem;
+      color: var(--wood-light);
+      opacity: 0.6;
+      font-style: italic;
+      text-align: center;
+      padding: var(--space-xs) var(--space-sm);
+      background: rgba(0, 0, 0, 0.3);
+      margin: 0;
+    }
+
     .play-again-btn {
       padding: var(--space-lg) var(--space-2xl);
       background: linear-gradient(135deg, #22c55e, #16a34a);
@@ -2940,6 +2992,31 @@
           `;
         }).join('');
         
+        // Build fun fact HTML if available
+        let funFactHtml = '';
+        if (round.funFact) {
+          funFactHtml = `
+            <div class="rh-fun-fact">
+              <span class="rh-fun-fact-icon">💡</span>
+              <div class="rh-fun-fact-text">${renderMarkdown(round.funFact)}</div>
+            </div>
+          `;
+        }
+
+        // Build image HTML if available
+        let imageHtml = '';
+        if (round.funFactImage) {
+          const promptCaption = round.funFactImagePrompt
+            ? `<p class="rh-image-prompt">${round.funFactImagePrompt}</p>`
+            : '';
+          imageHtml = `
+            <div class="rh-image-container">
+              <img class="rh-image" src="${round.funFactImage}" alt="Generated image for round ${round.roundNumber}">
+              ${promptCaption}
+            </div>
+          `;
+        }
+
         return `
           <div class="round-history-item">
             <div class="round-history-header">
@@ -2964,6 +3041,8 @@
             <div class="round-history-results">
               ${playersHtml}
             </div>
+            ${funFactHtml}
+            ${imageHtml}
           </div>
         `;
       }).join('');

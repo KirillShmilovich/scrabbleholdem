@@ -952,6 +952,11 @@ function revealResults(lobby) {
         console.log(`Fun fact generated for [${validWords.join(', ')}]: "${funFact.substring(0, 50)}..."`);
         lobby.currentFunFact = funFact;
         lobby.currentFunFactWords = validWords;
+        // Store fun fact in round history for game summary
+        const currentRound = lobby.roundHistory.find(r => r.roundNumber === lobby.roundNumber);
+        if (currentRound) {
+          currentRound.funFact = funFact;
+        }
         broadcastToLobby(lobby, 'game:funFact', { funFact });
       } else {
         // Let client know fun fact failed so it can hide the loading state
@@ -1369,6 +1374,12 @@ io.on('connection', (socket) => {
 
       console.log(`Fun fact image generated for lobby ${lobby.code}`);
       lobby.currentFunFactImage = dataUrl;
+      // Store image in round history for game summary
+      const currentRound = lobby.roundHistory.find(r => r.roundNumber === lobby.roundNumber);
+      if (currentRound) {
+        currentRound.funFactImage = dataUrl;
+        currentRound.funFactImagePrompt = imagePrompt;
+      }
       broadcastToLobby(lobby, 'game:funFactImage', { imageUrl: dataUrl, prompt: imagePrompt });
     } catch (err) {
       console.error('Image generation error:', err);
