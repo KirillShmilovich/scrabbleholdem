@@ -1726,7 +1726,27 @@
       color: var(--wood-light);
       font-size: 1.1rem;
     }
-    
+
+    /* Countdown animation */
+    .overlay-text.countdown {
+      font-size: 5rem;
+      animation: countdownPulse 0.8s ease-out;
+    }
+
+    @keyframes countdownPulse {
+      0% {
+        transform: scale(1.5);
+        opacity: 0;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
     /* Reconnecting banner */
     .reconnecting-banner {
       position: fixed;
@@ -2210,8 +2230,34 @@
     
     function hideOverlay() {
       elements.animationOverlay.classList.remove('active');
+      elements.overlayText.classList.remove('countdown');
     }
-    
+
+    function showCountdownOverlay(subtext) {
+      const steps = ['3', '2', '1', 'GO!'];
+      let stepIndex = 0;
+
+      elements.overlaySubtext.textContent = subtext || '';
+      elements.animationOverlay.classList.add('active');
+
+      function showStep() {
+        if (stepIndex >= steps.length) return;
+
+        elements.overlayText.classList.remove('countdown');
+        elements.overlayText.textContent = steps[stepIndex];
+        // Force reflow to restart animation
+        void elements.overlayText.offsetWidth;
+        elements.overlayText.classList.add('countdown');
+
+        stepIndex++;
+        if (stepIndex < steps.length) {
+          setTimeout(showStep, 800);
+        }
+      }
+
+      showStep();
+    }
+
     function formatTime(seconds) {
       const mins = Math.floor(seconds / 60);
       const secs = seconds % 60;
@@ -3261,7 +3307,7 @@
       
       // Game starting
       socket.on('game:starting', (data) => {
-        showOverlay('🎲 Starting Game!', `${data.totalRounds} rounds`);
+        showCountdownOverlay(`${data.totalRounds} rounds`);
       });
       
       // New round

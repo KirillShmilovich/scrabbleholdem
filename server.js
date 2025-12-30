@@ -1211,10 +1211,10 @@ io.on('connection', (socket) => {
       totalRounds: lobby.settings.totalRounds,
     });
     
-    // Start first round after a brief delay
+    // Start first round after countdown (3, 2, 1, GO! at 800ms each)
     setTimeout(() => {
       startNewRound(lobby);
-      
+
       // Send individual state to each player
       lobby.players.forEach((p, visibleId) => {
         const socketId = lobby.playerSockets.get(visibleId);
@@ -1222,7 +1222,7 @@ io.on('connection', (socket) => {
           io.to(socketId).emit('game:newRound', getPlayerState(lobby, visibleId));
         }
       });
-    }, 1500);
+    }, 3500);
   });
   
   // Start new round (host only, after results shown)
