@@ -978,101 +978,106 @@
     
     .results-screen {
       align-items: center;
-      padding-top: var(--space-xl);
+      padding-top: var(--space-md);
     }
-    
+
     .results-header {
       text-align: center;
-      margin-bottom: var(--space-xl);
+      margin-bottom: var(--space-md);
     }
-    
+
     .results-title {
       font-family: var(--font-display);
-      font-size: 1.75rem;
+      font-size: 1.5rem;
       color: var(--gold);
-      margin-bottom: var(--space-xs);
+      margin-bottom: 2px;
     }
-    
+
     .results-subtitle {
       color: var(--wood-light);
       opacity: 0.8;
+      font-size: 0.85rem;
     }
     
-    /* Round Results */
+    /* Round Results - Compact Layout */
     .round-results {
       width: 100%;
       max-width: 400px;
-      margin-bottom: var(--space-xl);
+      margin-bottom: var(--space-md);
     }
-    
+
     .result-item {
       display: flex;
       align-items: center;
-      padding: var(--space-md) var(--space-lg);
+      padding: var(--space-sm) var(--space-md);
       background: rgba(0, 0, 0, 0.2);
       border: 1px solid rgba(212, 175, 55, 0.2);
-      border-radius: 12px;
-      margin-bottom: var(--space-sm);
+      border-radius: 10px;
+      margin-bottom: 6px;
       transition: all 0.3s ease;
     }
-    
+
     .result-item.place-1 {
       background: rgba(212, 175, 55, 0.2);
       border-color: var(--gold);
     }
-    
+
     .result-item.place-2 {
       background: rgba(192, 192, 192, 0.15);
       border-color: #c0c0c0;
     }
-    
+
     .result-item.place-3 {
       background: rgba(205, 127, 50, 0.15);
       border-color: #cd7f32;
     }
-    
+
     .result-place {
-      width: 36px;
-      height: 36px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 1rem;
-      margin-right: var(--space-md);
+      font-size: 0.85rem;
+      margin-right: var(--space-sm);
       background: #6b7280;
       color: white;
+      flex-shrink: 0;
     }
-    
+
     .place-1 .result-place { background: var(--gold); color: var(--felt-dark); }
     .place-2 .result-place { background: #c0c0c0; color: var(--felt-dark); }
     .place-3 .result-place { background: #cd7f32; color: white; }
-    
+
     .result-info {
       flex: 1;
+      min-width: 0;
     }
-    
+
     .result-name {
       font-weight: 600;
+      font-size: 0.9rem;
       color: var(--cream);
-      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    
+
     .result-word {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: var(--wood-light);
     }
 
     .result-word-prominent {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 1.2rem;
+      font-size: 1rem;
       font-weight: 700;
       color: var(--gold-light);
       text-transform: uppercase;
-      letter-spacing: 0.15em;
-      margin-top: var(--space-xs);
+      letter-spacing: 0.1em;
     }
 
     .result-item.place-1 .result-word-prominent {
@@ -1082,70 +1087,76 @@
 
     .result-score {
       text-align: right;
+      flex-shrink: 0;
+      margin-left: var(--space-sm);
     }
-    
+
     .result-word-score {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 1.1rem;
+      font-size: 1rem;
       font-weight: 700;
       color: var(--cream);
     }
-    
+
     .result-points-earned {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--gold);
     }
-    
-    /* Standings */
+
+    /* Standings - Compact */
     .standings-section {
       width: 100%;
       max-width: 400px;
-      margin-bottom: var(--space-xl);
-    }
-    
-    .standings-title {
-      font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--gold);
-      text-align: center;
       margin-bottom: var(--space-md);
     }
-    
+
+    .standings-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--gold);
+      text-align: center;
+      margin-bottom: var(--space-sm);
+    }
+
     .standings-list {
       display: flex;
       flex-direction: column;
-      gap: var(--space-xs);
+      gap: 4px;
     }
-    
+
     .standing-item {
       display: flex;
       align-items: center;
-      padding: var(--space-sm) var(--space-md);
+      padding: 6px var(--space-md);
       background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
+      border-radius: 6px;
+      font-size: 0.9rem;
     }
-    
+
     .standing-item.leader {
       background: rgba(212, 175, 55, 0.15);
       border: 1px solid var(--gold);
     }
-    
+
     .standing-rank {
-      width: 24px;
+      width: 20px;
       font-weight: 700;
       color: var(--wood-light);
+      font-size: 0.85rem;
     }
-    
+
     .standing-name {
       flex: 1;
       color: var(--cream);
+      font-size: 0.9rem;
     }
-    
+
     .standing-points {
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
       color: var(--gold);
+      font-size: 0.9rem;
     }
     
     /* Next Round Button (host) */
@@ -1168,31 +1179,31 @@
       box-shadow: 0 6px 20px rgba(212, 175, 55, 0.5);
     }
     
-    /* Fun Fact Section */
+    /* Fun Fact Section - Compact */
     .fun-fact-section {
       width: 100%;
       max-width: 400px;
-      margin-bottom: var(--space-xl);
-      padding: var(--space-md) var(--space-lg);
+      margin-bottom: var(--space-md);
+      padding: var(--space-sm) var(--space-md);
       background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(59, 130, 246, 0.08));
       border: 1px solid rgba(139, 92, 246, 0.25);
-      border-radius: 12px;
+      border-radius: 10px;
       display: flex;
       align-items: flex-start;
-      gap: var(--space-md);
+      gap: var(--space-sm);
     }
-    
+
     .fun-fact-icon {
-      font-size: 1rem;
+      font-size: 0.9rem;
       flex-shrink: 0;
       opacity: 0.85;
-      margin-top: 2px;
+      margin-top: 1px;
     }
-    
+
     .fun-fact-text {
       color: var(--gold-light);
-      font-size: 0.9rem;
-      line-height: 1.6;
+      font-size: 0.85rem;
+      line-height: 1.5;
       font-style: italic;
     }
 
@@ -2269,8 +2280,8 @@
       elements.roundsValue.textContent = state.settings.totalRounds;
       elements.timerValue.textContent = formatTime(state.settings.timerDuration);
       
-      // Disable start if < 2 players
-      elements.startGameBtn.disabled = state.players.length < 2;
+      // Disable start if no players (allow solo play)
+      elements.startGameBtn.disabled = state.players.length < 1;
     }
     
     // Settings controls
