@@ -3136,6 +3136,14 @@
         elements.connectingOverlay.classList.add('hidden');
         elements.reconnectingBanner.classList.add('hidden');
 
+        // Connection state recovery: if socket.recovered is true, Socket.IO
+        // seamlessly restored the session (socket.id preserved, events buffered).
+        // No need to re-emit lobby:join - the server still has our mapping.
+        if (socket.recovered) {
+          console.log('Connection recovered seamlessly');
+          return;
+        }
+
         // URL is the source of truth for which lobby to join
         const urlCode = getLobbyCodeFromUrl();
 

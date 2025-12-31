@@ -22,6 +22,12 @@ const io = new Server(server, {
   // Shorter timeouts for faster failure detection
   pingTimeout: 20000,   // 20 seconds to detect dead connections
   pingInterval: 10000,  // Ping every 10 seconds to keep connection alive
+  // Connection state recovery: makes brief disconnects (WiFi blips) seamless
+  // Socket.IO will buffer events and restore room memberships automatically
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
+    skipMiddlewares: true,
+  },
 });
 
 // Serve static files
@@ -1031,7 +1037,13 @@ app.get('*', (req, res) => {
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  if (socket.recovered) {
+    // Connection state recovery succeeded - socket.id preserved, events buffered
+    // Client will still emit lobby:join but playerSockets mapping is already valid
+    console.log('Client reconnected (recovered):', socket.id);
+  } else {
+    console.log('Client connected:', socket.id);
+  }
   
   // Create a new lobby
   socket.on('lobby:create', (data) => {
