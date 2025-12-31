@@ -632,7 +632,7 @@ async function generateFunFact(words) {
       content: `Words: ${wordsList}`
     }
   ], {
-    maxTokens: 150,
+    maxTokens: 1200,  // Must be high enough for reasoning (~1024) PLUS content (~150)
     temperature: 0.4,
     timeout: 30000,
     reasoning: { max_tokens: 1024 }
