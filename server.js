@@ -50,204 +50,11 @@ try {
   console.error('Failed to load dictionary:', err.message);
 }
 
-// Word validation API (legacy - client now validates locally)
-app.get('/api/validate/:word', (req, res) => {
-  const word = (req.params.word || '').toUpperCase().trim();
-  const isValid = dictionary.has(word);
-  res.json({ word, isValid, dictionarySize: dictionary.size });
-});
-
 // Serve dictionary for client-side validation (cached heavily)
 app.get('/api/dictionary', (req, res) => {
   res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
   res.type('text/plain');
   res.sendFile(path.join(__dirname, 'data', 'words.txt'));
-});
-
-// Fun fact API - generates a fun fact based on words played in the round
-app.post('/api/funfact', async (req, res) => {
-  const { words } = req.body;
-  
-  if (!words || !Array.isArray(words) || words.length === 0) {
-    return res.status(400).json({ error: 'No words provided' });
-  }
-  
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
-  }
-  
-  // Filter to only valid, non-empty words
-  const validWords = words.filter(w => w && typeof w === 'string' && w.length > 0);
-  if (validWords.length === 0) {
-    return res.status(400).json({ error: 'No valid words provided' });
-  }
-  
-  const wordsList = validWords.map(w => w.toUpperCase()).join(', ');
-  
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Scrabble Holdem'
-      },
-      body: JSON.stringify({
-        model: 'nvidia/nemotron-3-nano-30b-a3b:free',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You generate witty, genuinely interesting facts for an adult word game audience. ' +
-              'Given a list of words players used, find a clever connection or share a fascinating tidbit.\n\n' +
-              'Guidelines:\n' +
-              '- Be genuinely interesting—the kind of fact you\'d share at a dinner party\n' +
-              '- Historical oddities, etymology surprises, pop culture connections, scientific quirks all work\n' +
-              '- Dry wit > cutesy humor. Smart > silly.\n' +
-              '- If words seem unrelated, find an unexpected link—the more surprising, the better\n' +
-              '- Keep it tight: 1-2 punchy sentences\n' +
-              '- Be accurate—no made-up facts\n' +
-              '- If only one word, share something genuinely surprising about it\n\n' +
-              'Reply with ONLY the fact, no labels or prefixes.'
-          },
-          {
-            role: 'user',
-            content: `Words: ${wordsList}\n\nShare a genuinely interesting fact:`
-          }
-        ],
-        reasoning: { enabled: false },
-        max_tokens: 200,
-        temperature: 0.8
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      console.error('OpenRouter error:', data.error);
-      return res.status(500).json({ error: 'Failed to generate fun fact' });
-    }
-    
-    let content = data.choices?.[0]?.message?.content || '';
-    
-    // Clean up model-specific tokens
-    content = content
-      .replace(/<\/?s>/g, '')
-      .replace(/\[\/INST\]/g, '')
-      .replace(/\[INST\]/g, '')
-      .replace(/<think>[\s\S]*?<\/think>/g, '')
-      .replace(/^["']|["']$/g, '')
-      .replace(/^FUN FACT:\s*/i, '')
-      .trim();
-    
-    if (!content) {
-      return res.status(500).json({ error: 'Empty response from model' });
-    }
-    
-    res.json({ funFact: content, words: validWords });
-    
-  } catch (err) {
-    console.error('Fun fact API error:', err);
-    res.status(500).json({ error: 'Failed to generate fun fact' });
-  }
-});
-
-// Word definition API using OpenRouter
-app.get('/api/define/:word', async (req, res) => {
-  const word = (req.params.word || '').toLowerCase().trim();
-  
-  if (!word) {
-    return res.status(400).json({ error: 'No word provided' });
-  }
-  
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
-  }
-  
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Scrabble Holdem'
-      },
-      body: JSON.stringify({
-        model: 'nvidia/nemotron-3-nano-30b-a3b:free',
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are a Scrabble-friendly mini-dictionary with a light, playful tone. ' +
-              'Be accurate first; be fun and interesting second.\n\n' +
-              'Reply with EXACTLY three lines and nothing else:\n' +
-              'DEF: <brief definition>\n' +
-              'EX: <one natural example sentence using the word in that same sense>\n' +
-              'TRIVIA: <a fun "did you know?" fact>\n\n' +
-              'Notes: Scrabble words can be inflections, variants, archaic spellings, or abbreviations—define them as such when appropriate.'
-          },
-          {
-            role: 'user',
-            content:
-              `Word: ${JSON.stringify(word)}\n` +
-              'Rules:\n' +
-              '- DEF: concise plain-English meaning (or "plural of …", "past tense of …", etc.).\n' +
-              '- EX: one sentence using the word.\n' +
-              '- TRIVIA: a fun fact—could be pop culture, a famous quote, a record, a surprising use, or etymology if it\'s genuinely interesting. Keep it brief.\n' +
-              '- No extra lines, no bullets, no markdown, no preamble.'
-          }
-        ],
-        reasoning: { enabled: false },
-        max_tokens: 300,
-        temperature: 0.7
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      console.error('OpenRouter error:', data.error);
-      return res.status(500).json({ error: 'Failed to get definition' });
-    }
-    
-    let content = data.choices?.[0]?.message?.content || '';
-    
-    // Clean up model-specific tokens
-    content = content
-      .replace(/<\/?s>/g, '')
-      .replace(/\[\/INST\]/g, '')
-      .replace(/\[INST\]/g, '')
-      .trim();
-    
-    // Parse the response
-    const defMatch = content.match(/DEF:\s*(.+)/i);
-    const exMatch = content.match(/EX:\s*(.+)/i);
-    const triviaMatch = content.match(/TRIVIA:\s*(.+)/i);
-    
-    let definition = defMatch ? defMatch[1].trim() : 'Definition not available';
-    let example = exMatch ? exMatch[1].trim() : '';
-    let trivia = triviaMatch ? triviaMatch[1].trim() : '';
-    
-    // Clean up any remaining artifacts
-    definition = definition.replace(/\[\/INST\]/g, '').trim();
-    example = example.replace(/\[\/INST\]/g, '').trim();
-    trivia = trivia.replace(/\[\/INST\]/g, '').trim();
-    
-    res.json({
-      word: word,
-      definition: definition,
-      example: example,
-      trivia: trivia
-    });
-    
-  } catch (err) {
-    console.error('Definition API error:', err);
-    res.status(500).json({ error: 'Failed to fetch definition' });
-  }
 });
 
 // ============================================================================
@@ -264,11 +71,25 @@ const LLM_CONFIG = {
 };
 
 // Call OpenRouter API with centralized config
+// Options:
+//   maxTokens: max output tokens (default 200)
+//   temperature: sampling temperature (default 0.7)
+//   timeout: request timeout in ms (default 30000)
+//   reasoning: reasoning config object, e.g.:
+//     { enabled: true } - enable with defaults
+//     { max_tokens: 1024 } - set reasoning budget
+//     { effort: 'high' } - use effort level (xhigh/high/medium/low/minimal/none)
+//     { enabled: true, exclude: true } - reason internally but don't return it
 async function callOpenRouter(messages, options = {}) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return { error: 'API key not configured' };
 
-  const { maxTokens = 200, temperature = 0.7, timeout = 30000 } = options;
+  const {
+    maxTokens = 200,
+    temperature = 0.7,
+    timeout = 30000,
+    reasoning = { enabled: false }
+  } = options;
 
   try {
     const controller = new AbortController();
@@ -284,7 +105,7 @@ async function callOpenRouter(messages, options = {}) {
       body: JSON.stringify({
         model: LLM_CONFIG.model,
         messages,
-        reasoning: { enabled: false },
+        reasoning,
         max_tokens: maxTokens,
         temperature,
       })
@@ -298,9 +119,10 @@ async function callOpenRouter(messages, options = {}) {
       return { error: data.error };
     }
 
-    let content = data.choices?.[0]?.message?.content || '';
+    const message = data.choices?.[0]?.message || {};
+    let content = message.content || '';
 
-    // Clean up model-specific tokens
+    // Clean up model-specific tokens (fallback for models that leak thinking into content)
     content = content
       .replace(/<\/?s>/g, '')
       .replace(/\[\/INST\]/g, '')
@@ -308,7 +130,12 @@ async function callOpenRouter(messages, options = {}) {
       .replace(/<think>[\s\S]*?<\/think>/g, '')
       .trim();
 
-    return { content };
+    // Return reasoning if present (from reasoning-enabled calls)
+    const result = { content };
+    if (message.reasoning) {
+      result.reasoning = message.reasoning;
+    }
+    return result;
   } catch (err) {
     if (err.name === 'AbortError') {
       console.error('OpenRouter request timed out');
@@ -762,116 +589,75 @@ function calculatePlacements(lobby) {
 
 // Generate fun fact for a set of words (used by revealResults)
 async function generateFunFact(words) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey || words.length === 0) return null;
+  if (words.length === 0) return null;
 
   const wordsList = words.map(w => w.toUpperCase()).join(', ');
 
-  try {
-    // Add timeout to prevent hanging
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Scrabble Holdem'
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: 'nvidia/nemotron-3-nano-30b-a3b:free', // nvidia/nemotron-3-nano-30b-a3b:free
-        messages: [
-          {
-            role: 'system',
-            content:
-              'Generate a short and punchy fun fact connections between the list of provided Scrabble words. The fun facts should be interesting and surprising. If the words are unrelated, find an unexpected link. The more surprising, the better.\n\n' +
-              'All provided words are valid Scrabble words and will be provided in all uppercase.\n\n' +
-              'FORMAT:\n' +
-              '- Maximum of 1-2 sentences, keep it short and sweet\n' +
-              '- Bold EVERY word provided in the list with **WORD** (uppercase) in the response\n' +
-              '- Do NOT use italics in the response\n' +
-              '- Just the connection, no preamble or labels\n\n' +
-              'EXAMPLES:\n\n' +
-              'Words: RIVER, BANK\n' +
-              '**BANK** originally meant "riverbank," and financial banks got their name from money-changers by the **RIVER**.\n\n' +
-              'Words: PIZZA, QUEEN\n' +
-              'The Margherita **PIZZA** was named after **QUEEN** Margherita of Italy in 1889.\n\n' +
-              'Words: WIN, BINS\n' +
-              'Ancient Greeks tossed dice into **BINS** to divine fate, and a lucky throw meant you **WIN**.\n\n' +
-              'Words: GOLF, TEA, CUP\n' +
-              'The **GOLF** tee comes from the letter T, while **TEA** time tradition gave us **CUP** as a measurement.\n\n' +
-              'Words: ZEN, AXE\n' +
-              '**ZEN** monks historically used an **AXE** to chop wood as a form of moving meditation.\n\n' +
-              'Words: QI, JOKE\n' +
-              'In traditional Chinese medicine, laughter is believed to stimulate **QI** flow, making a good **JOKE** literally energizing.\n\n' +
-              'WRONG EXAMPLES (missing bold, uses italics):\n' +
-              'Words: WIN, BINS\n' +
-              '**WIN** was used in ancient dice games with *bins*.\n\n' +
-              'AVOID:\n' +
-              '- Obvious observations\n' +
-              '- Made-up facts\n' +
-              '- Long explanations\n' +
-              '- Commenting on each word independently\n' +
-              '- Just saying the words have similar letters'
-          },
-          {
-            role: 'user',
-            content: `Words: ${wordsList}`
-          }
-        ],
-        reasoning: { enabled: false },
-        max_tokens: 150,
-        temperature: 0.4
-      })
-    });
-
-    clearTimeout(timeout);
-    const data = await response.json();
-
-    // Log raw response for debugging
-    console.log('Fun fact API response:', JSON.stringify(data).substring(0, 500));
-
-    if (data.error) {
-      console.error('Fun fact generation error:', data.error);
-      return null;
+  const result = await callOpenRouter([
+    {
+      role: 'system',
+      content:
+        'Generate a short and punchy fun fact connections between the list of provided Scrabble words. The fun facts should be interesting and surprising. If the words are unrelated, find an unexpected link. The more surprising, the better.\n\n' +
+        'All provided words are valid Scrabble words and will be provided in all uppercase.\n\n' +
+        'FORMAT:\n' +
+        '- Maximum of 1-2 sentences, keep it short and sweet\n' +
+        '- Bold EVERY word provided in the list with **WORD** (uppercase) in the response\n' +
+        '- Do NOT use italics in the response\n' +
+        '- Just the connection, no preamble or labels\n\n' +
+        'EXAMPLES:\n\n' +
+        'Words: RIVER, BANK\n' +
+        '**BANK** originally meant "riverbank," and financial banks got their name from money-changers by the **RIVER**.\n\n' +
+        'Words: PIZZA, QUEEN\n' +
+        'The Margherita **PIZZA** was named after **QUEEN** Margherita of Italy in 1889.\n\n' +
+        'Words: WIN, BINS\n' +
+        'Ancient Greeks tossed dice into **BINS** to divine fate, and a lucky throw meant you **WIN**.\n\n' +
+        'Words: GOLF, TEA, CUP\n' +
+        'The **GOLF** tee comes from the letter T, while **TEA** time tradition gave us **CUP** as a measurement.\n\n' +
+        'Words: ZEN, AXE\n' +
+        '**ZEN** monks historically used an **AXE** to chop wood as a form of moving meditation.\n\n' +
+        'Words: QI, JOKE\n' +
+        'In traditional Chinese medicine, laughter is believed to stimulate **QI** flow, making a good **JOKE** literally energizing.\n\n' +
+        'WRONG EXAMPLES (missing bold, uses italics):\n' +
+        'Words: WIN, BINS\n' +
+        '**WIN** was used in ancient dice games with *bins*.\n\n' +
+        'AVOID:\n' +
+        '- Obvious observations\n' +
+        '- Made-up facts\n' +
+        '- Long explanations\n' +
+        '- Commenting on each word independently\n' +
+        '- Just saying the words have similar letters'
+    },
+    {
+      role: 'user',
+      content: `Words: ${wordsList}`
     }
+  ], {
+    maxTokens: 150,
+    temperature: 0.4,
+    timeout: 30000,
+    reasoning: { max_tokens: 1024 }
+  });
 
-    let content = data.choices?.[0]?.message?.content || '';
-
-    // If empty, check for reasoning_content (some models put output there)
-    if (!content && data.choices?.[0]?.message?.reasoning_content) {
-      console.log('Found reasoning_content instead of content');
-      content = data.choices[0].message.reasoning_content;
-    }
-
-    content = content
-      .replace(/<\/?s>/g, '')
-      .replace(/\[\/INST\]/g, '')
-      .replace(/\[INST\]/g, '')
-      .replace(/<think>[\s\S]*?<\/think>/g, '')
-      .replace(/^["']|["']$/g, '')
-      .replace(/^FUN FACT:\s*/i, '')
-      .trim();
-
-    if (!content) {
-      // Check if it was cut off due to token limit
-      const finishReason = data.choices?.[0]?.finish_reason;
-      if (finishReason === 'length') {
-        console.log('Fun fact generation hit token limit - reasoning used all tokens');
-      } else {
-        console.log('Fun fact content empty after processing');
-      }
-      return null;
-    }
-
-    return content;
-  } catch (err) {
-    console.error('Fun fact generation error:', err);
+  if (result.error) {
+    console.error('Fun fact generation error:', result.error);
     return null;
   }
+
+  let content = result.content
+    .replace(/^["']|["']$/g, '')
+    .replace(/^FUN FACT:\s*/i, '')
+    .trim();
+
+  if (!content) {
+    console.log('Fun fact content empty after processing');
+    return null;
+  }
+
+  if (result.reasoning) {
+    console.log(`Fun fact reasoning (${result.reasoning.length} chars): "${result.reasoning.substring(0, 100)}..."`);
+  }
+
+  return content;
 }
 
 // Reveal results for a round
