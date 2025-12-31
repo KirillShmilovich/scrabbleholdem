@@ -632,10 +632,9 @@ async function generateFunFact(words) {
       content: `Words: ${wordsList}`
     }
   ], {
-    maxTokens: 1200,  // Must be high enough for reasoning (~1024) PLUS content (~150)
+    maxTokens: 150,
     temperature: 0.4,
-    timeout: 30000,
-    reasoning: { max_tokens: 1024 }
+    timeout: 30000
   });
 
   if (result.error) {
@@ -651,10 +650,6 @@ async function generateFunFact(words) {
   if (!content) {
     console.log('Fun fact content empty after processing');
     return null;
-  }
-
-  if (result.reasoning) {
-    console.log(`Fun fact reasoning (${result.reasoning.length} chars): "${result.reasoning.substring(0, 100)}..."`);
   }
 
   return content;
