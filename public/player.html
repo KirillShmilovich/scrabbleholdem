@@ -2405,7 +2405,7 @@
     });
     
     document.getElementById('timerUp').addEventListener('click', () => {
-      settingsTimer = Math.min(180, settingsTimer + 15);
+      settingsTimer = Math.min(600, settingsTimer + 15);
       elements.timerValue.textContent = formatTime(settingsTimer);
       socket.emit('lobby:updateSettings', { timerDuration: settingsTimer });
     });

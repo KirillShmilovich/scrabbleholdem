@@ -966,7 +966,7 @@ io.on('connection', (socket) => {
       lobby.settings.totalRounds = Math.min(20, Math.max(3, data.totalRounds));
     }
     if (data.timerDuration) {
-      lobby.settings.timerDuration = Math.min(180, Math.max(30, data.timerDuration));
+      lobby.settings.timerDuration = Math.min(600, Math.max(30, data.timerDuration));
     }
     
     // Broadcast updated settings
