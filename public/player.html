@@ -2606,97 +2606,119 @@
       const modifier = currentState.modifier;
       const modifierDieId = `community-${modifier.dieIndex}`;
       const modifierSelected = selectedDice.includes(modifierDieId);
-      const modifierPosition = selectedDice.indexOf(modifierDieId);
-      const wordLength = selectedDice.length;
-      
+      const modifierTileIndex = selectedDice.indexOf(modifierDieId);
+      const tileCount = selectedDice.length;
+
       // Build word data
       const wordDice = selectedDice.map(dieId => ({
         id: dieId,
         die: getDieData(dieId),
         isModified: dieId === modifierDieId
       }));
-      
+
+      // Calculate actual letter count (tiles like "Qu" count as 2 letters)
+      const letterCount = wordDice.reduce((sum, wd) => sum + wd.die.letter.length, 0);
+
+      // Calculate the letter position where the modifier tile starts
+      const modifierLetterPos = modifierTileIndex >= 0
+        ? wordDice.slice(0, modifierTileIndex).reduce((sum, wd) => sum + wd.die.letter.length, 0)
+        : -1;
+
+      // Helper: check if modifier tile contains a specific letter position
+      const tileContainsLetterPos = (targetPos) => {
+        if (modifierTileIndex < 0) return false;
+        const tileLen = wordDice[modifierTileIndex].die.letter.length;
+        return targetPos >= modifierLetterPos && targetPos < modifierLetterPos + tileLen;
+      };
+
       // Calculate modifier
       let modifierApplies = false;
       let modifierMultiplier = 1;
       let modifierBonusPoints = 0;
       let modifierStatus = '';
-      
+
       if (modifierSelected) {
         const modDie = getDieData(modifierDieId);
-        
+        const modTileLen = modDie.letter.length;
+
         switch (modifier.type) {
           case 'multiply':
             modifierApplies = true;
             modifierMultiplier = modifier.multiplier;
             modifierStatus = `✓ ${modifier.name}: ×${modifier.multiplier} on ${modDie.letter}`;
             break;
-            
+
           case 'position':
-            if (modifier.position === 'start' && modifierPosition === 0) {
+            // Position checks now use actual letter positions
+            if (modifier.position === 'start' && modifierLetterPos === 0) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
               modifierStatus = `✓ ${modDie.letter} is FIRST → ×${modifier.multiplier}`;
-            } else if (modifier.position === 'end' && modifierPosition === wordLength - 1) {
+            } else if (modifier.position === 'end' && modifierLetterPos + modTileLen === letterCount) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
               modifierStatus = `✓ ${modDie.letter} is LAST → ×${modifier.multiplier}`;
-            } else if (modifier.position === 'middle' && modifierPosition > 0 && modifierPosition < wordLength - 1) {
+            } else if (modifier.position === 'middle' && modifierLetterPos > 0 && modifierLetterPos + modTileLen < letterCount) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
               modifierStatus = `✓ ${modDie.letter} is in MIDDLE → ×${modifier.multiplier}`;
-            } else if (modifier.position === 'second' && modifierPosition === 1) {
+            } else if (modifier.position === 'second' && tileContainsLetterPos(1)) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} is 2nd letter → ×${modifier.multiplier}`;
-            } else if (modifier.position === 'penultimate' && modifierPosition === wordLength - 2 && wordLength >= 2) {
+              modifierStatus = `✓ ${modDie.letter} contains 2nd letter → ×${modifier.multiplier}`;
+            } else if (modifier.position === 'penultimate' && tileContainsLetterPos(letterCount - 2) && letterCount >= 2) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} is 2nd-to-last → ×${modifier.multiplier}`;
-            } else if (modifier.position === 'center' && wordLength % 2 === 1 && modifierPosition === Math.floor(wordLength / 2)) {
+              modifierStatus = `✓ ${modDie.letter} contains 2nd-to-last → ×${modifier.multiplier}`;
+            } else if (modifier.position === 'center' && letterCount % 2 === 1 && tileContainsLetterPos(Math.floor(letterCount / 2))) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} is CENTER → ×${modifier.multiplier}`;
+              modifierStatus = `✓ ${modDie.letter} contains CENTER → ×${modifier.multiplier}`;
             } else {
               const posNames = { start: 'first', end: 'last', middle: 'middle', second: '2nd', penultimate: '2nd-to-last', center: 'center (odd-length word)' };
               modifierStatus = `✗ ${modDie.letter} not in ${posNames[modifier.position] || modifier.position} position`;
             }
             break;
-            
+
           case 'length':
-            if (modifier.minLength && wordLength >= modifier.minLength) {
+            // Length checks now use actual letter count
+            if (modifier.minLength && letterCount >= modifier.minLength) {
               modifierApplies = true;
               modifierBonusPoints = modifier.bonus || 0;
               modifierMultiplier = modifier.multiplier || 1;
-              modifierStatus = `✓ Word is ${wordLength} letters (≥${modifier.minLength}) → +${modifier.bonus}`;
-            } else if (modifier.exactLength && wordLength === modifier.exactLength) {
+              modifierStatus = `✓ Word is ${letterCount} letters (≥${modifier.minLength}) → +${modifier.bonus}`;
+            } else if (modifier.exactLength && letterCount === modifier.exactLength) {
               modifierApplies = true;
               modifierBonusPoints = modifier.bonus || 0;
               modifierMultiplier = modifier.multiplier || 1;
               const bonusText = modifier.bonus ? ` +${modifier.bonus}` : '';
               const multText = modifier.multiplier > 1 ? `×${modifier.multiplier}` : '';
-              modifierStatus = `✓ Word is exactly ${wordLength} letters → ${multText}${bonusText}`;
+              modifierStatus = `✓ Word is exactly ${letterCount} letters → ${multText}${bonusText}`;
             } else {
               const needed = modifier.minLength ? `≥${modifier.minLength}` : `=${modifier.exactLength}`;
-              modifierStatus = `✗ Word is ${wordLength} letters (need ${needed})`;
+              modifierStatus = `✗ Word is ${letterCount} letters (need ${needed})`;
             }
             break;
-            
+
           case 'parity':
-            const isOdd = wordLength % 2 === 1;
+            // Parity checks now use actual letter count
+            const isOdd = letterCount % 2 === 1;
             if ((modifier.parity === 'odd' && isOdd) || (modifier.parity === 'even' && !isOdd)) {
               modifierApplies = true;
               modifierBonusPoints = modifier.bonus;
-              modifierStatus = `✓ Word has ${wordLength} (${modifier.parity}) letters → +${modifier.bonus}`;
+              modifierStatus = `✓ Word has ${letterCount} (${modifier.parity}) letters → +${modifier.bonus}`;
             } else {
-              modifierStatus = `✗ Word has ${wordLength} letters (not ${modifier.parity})`;
+              modifierStatus = `✗ Word has ${letterCount} letters (not ${modifier.parity})`;
             }
             break;
-            
+
           case 'neighbor':
-            const prevDie = modifierPosition > 0 ? getDieData(selectedDice[modifierPosition - 1]) : null;
-            const nextDie = modifierPosition < wordLength - 1 ? getDieData(selectedDice[modifierPosition + 1]) : null;
-            const hasVowelNeighbor = (prevDie && isVowel(prevDie.letter)) || (nextDie && isVowel(nextDie.letter));
+            // Check if adjacent tiles contain vowels (checking last char of prev tile, first char of next tile)
+            const prevTile = modifierTileIndex > 0 ? wordDice[modifierTileIndex - 1].die : null;
+            const nextTile = modifierTileIndex < tileCount - 1 ? wordDice[modifierTileIndex + 1].die : null;
+            const prevEndsWithVowel = prevTile && isVowel(prevTile.letter.slice(-1));
+            const nextStartsWithVowel = nextTile && isVowel(nextTile.letter[0]);
+            const hasVowelNeighbor = prevEndsWithVowel || nextStartsWithVowel;
 
             if (hasVowelNeighbor) {
               modifierApplies = true;
@@ -2708,8 +2730,10 @@
             break;
 
           case 'composition':
-            const vowelCount = wordDice.filter(wd => isVowel(wd.die.letter)).length;
-            const consonantCount = wordLength - vowelCount;
+            // Count actual vowels in the word string (handles multi-letter tiles like "Qu")
+            const wordString = wordDice.map(wd => wd.die.letter).join('');
+            const vowelCount = [...wordString].filter(c => 'AEIOUaeiou'.includes(c)).length;
+            const consonantCount = letterCount - vowelCount;
 
             if (modifier.compositionType === 'balanced' && vowelCount === consonantCount) {
               modifierApplies = true;
