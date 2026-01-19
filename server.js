@@ -212,7 +212,7 @@ const LETTERS = [
   { letter: 'K', points: 3 },
   { letter: 'J', points: 4 },
   { letter: 'X', points: 4 },
-  { letter: 'Q', points: 4 },
+  { letter: 'Qu', points: 4 },
   { letter: 'Z', points: 4 },
 ];
 
@@ -224,7 +224,7 @@ function createLetterDeck() {
   const consonantCounts = {
     B: 2, C: 2, D: 3, F: 2, G: 2, H: 2,
     J: 1, K: 1, L: 3, M: 2, N: 3, P: 2,
-    Q: 1, R: 3, S: 3, T: 3, V: 2, W: 2,
+    Qu: 1, R: 3, S: 3, T: 3, V: 2, W: 2,
     X: 1, Y: 2, Z: 1
   };
   
@@ -1134,17 +1134,19 @@ io.on('connection', (socket) => {
         return;
       }
 
-      // Use Cloudflare AI with FLUX.1-schnell
-      const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/black-forest-labs/flux-1-schnell`, {
+      // Use Cloudflare AI with FLUX.2-klein-4b
+      const formData = new FormData();
+      formData.append('prompt', imagePrompt);
+      formData.append('steps', '25');
+      formData.append('width', '1024');
+      formData.append('height', '1024');
+
+      const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          prompt: imagePrompt,
-          steps: 4,
-        })
+        body: formData,
       });
 
       if (!response.ok) {

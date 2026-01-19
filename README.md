@@ -1,79 +1,81 @@
-# 🎲 Scrabble Hold'em
+# Scrabble Hold'em
 
-A local multiplayer word game combining Scrabble-style letter scoring with Texas Hold'em mechanics. Play with friends on the same WiFi network!
+A local multiplayer word game combining Scrabble-style letter scoring with Texas Hold'em-inspired shared dice. Players join from their phones and compete to form the highest-scoring words.
 
 ## How It Works
 
-- **Board Display** (iPad/TV): Shows 5 community dice + a modifier (like "Triple Letter" or "Double Word")
-- **Player Phones**: Each player sees their own 3 personal dice
-- **Goal**: Combine your letters with the community dice to form the highest-scoring word!
+1. **Host creates a lobby** and gets a 4-character code
+2. **Players join** by entering the code on their phones
+3. Each round, everyone sees **5 shared community dice** plus their own **3 private dice**
+4. **Form the best word** using any combination of community + personal letters
+5. **Placement scoring**: 1st place = 3 pts, 2nd = 2 pts, 3rd = 1 pt
+6. After all rounds, highest total points wins
 
 ## Quick Start
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+npm start
+```
 
-2. **Start the server:**
-   ```bash
-   npm start
-   ```
+Open the URL shown in terminal on all devices. One person creates a lobby, others join with the code.
 
-3. **Connect devices:**
-   - The terminal will show URLs for your local network
-   - Open the **Board** on a shared screen (iPad between everyone)
-   - Each player joins via their phone at the **Player** URL
+## Game Flow
 
-## Game Rules
+1. **Lobby**: Host configures rounds (3-20) and timer (30-600 seconds), then starts
+2. **Round**: Timer counts down. First submission halves remaining time. All submitted = round ends early
+3. **Results**: See everyone's words and scores, plus an AI-generated fun fact connecting the words
+4. **Repeat** until all rounds complete, then view final standings
 
-1. The board shows 5 community letter dice (shared by all players)
-2. Each player has 3 private letter dice on their phone
-3. A modifier die shows bonuses like:
-   - **Normal** - No modifier
-   - **Double Letter** - One letter scores 2×
-   - **Triple Letter** - One letter scores 3×
-   - **Double Word** - Whole word scores 2×
-   - **Triple Word** - Whole word scores 3×
-4. Use any combination of your letters + community letters to form a word
-5. Score your word based on Scrabble point values (shown on each die)
-6. Wager on who has the best word, just like poker!
+## Modifiers
+
+Each round, one community die gets a random modifier:
+
+- **Letter multipliers**: ×2, ×3, ×4 on that letter
+- **Position bonuses**: Extra points if the modified letter is first, last, middle, etc.
+- **Length bonuses**: Rewards for specific word lengths (3, 4, 5, or 6+ letters)
+- **Composition bonuses**: Balanced vowels/consonants, vowel-rich words, odd/even length
 
 ## Letter Point Values
 
-| Letter | Points |
-|--------|--------|
-| A, E, I, O, U, L, N, S, T, R | 1 |
-| D, G | 2 |
-| B, C, M, P | 3 |
-| F, H, V, W, Y | 4 |
-| K | 5 |
-| J, X | 8 |
-| Q, Z | 10 |
+| Points | Letters |
+|--------|---------|
+| 1 | A, E, I, O, U, L, N, R, S, T |
+| 2 | B, C, D, G, H, M, P |
+| 3 | F, K, V, W, Y |
+| 4 | J, Qu, X, Z |
 
 ## Tech Stack
 
 - **Backend**: Node.js + Express + Socket.IO
 - **Frontend**: Vanilla HTML/CSS/JS
 - **Real-time sync**: WebSockets
-- **Word Definitions**: OpenRouter API (Mistral 7B)
+- **Fun facts**: OpenRouter API (LLM-generated connections between played words)
+- **Images**: Cloudflare AI (optional AI-generated illustrations)
 
 ## Word List
 
-This game uses the **NWL2023** (North American Scrabble Players Association Word List) containing **196,601 official Scrabble words**.
+Uses **NWL2023** (North American Scrabble Players Association Word List) with ~196k official Scrabble words.
 
 **Source:** [scrabblewords/scrabblewords](https://github.com/scrabblewords/scrabblewords/blob/main/words/North-American/NWL2023.txt)
 
-To update the word list in the future:
 ```bash
+# Update word list
 curl -sL "https://raw.githubusercontent.com/scrabblewords/scrabblewords/main/words/North-American/NWL2023.txt" | awk '{print $1}' > data/words.txt
+```
+
+## Environment Variables
+
+```
+PORT                   # Server port (default: 3000)
+OPENROUTER_API_KEY     # For fun fact generation
+CLOUDFLARE_API_TOKEN   # For image generation (optional)
+CLOUDFLARE_ACCOUNT_ID  # Cloudflare account ID (optional)
 ```
 
 ## Remote Play
 
-To play with friends not on your local WiFi, set up port forwarding on your router (port 3000) and share the public IP shown when the server starts.
-
-Enjoy the game! 🎲
+For friends not on local WiFi: set up port forwarding (port 3000) or deploy to a cloud host like Render.
 
 
 

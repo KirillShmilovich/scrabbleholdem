@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Scrabble Hold'em is a local multiplayer word game combining Scrabble scoring with Texas Hold'em mechanics. Players connect via their phones to play together, with a shared board display (e.g., iPad/TV) showing community dice.
+Scrabble Hold'em is a local multiplayer word game combining Scrabble scoring with Texas Hold'em-style shared dice. Players connect via their phones to a lobby (4-char code), where they see shared community dice and their own private dice.
 
 ## Commands
 
@@ -42,12 +42,12 @@ All LLM calls go through OpenRouter (`OPENROUTER_API_KEY` env var):
 - Image prompt generation for fun fact illustrations (via `generateImagePrompt()`)
 
 Image generation via Cloudflare AI (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` env vars):
-- Uses FLUX.1-schnell model
+- Uses FLUX.2-klein-4b model
 
 ## Environment Variables
 
 ```
-OPENROUTER_API_KEY     # For LLM features (definitions, fun facts)
+OPENROUTER_API_KEY     # For LLM features (fun facts, image prompts)
 CLOUDFLARE_API_TOKEN   # For image generation
 CLOUDFLARE_ACCOUNT_ID  # Cloudflare account ID
 PORT                   # Server port (default: 3000)
