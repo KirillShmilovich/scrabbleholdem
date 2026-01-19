@@ -717,34 +717,24 @@
       right: 6px;
     }
     
-    .die .die-modifier {
-      position: absolute;
-      top: -8px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--modifier-color);
-      color: white;
-      font-size: 0.5rem;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 100px;
-      white-space: nowrap;
-    }
-    
     .die.has-modifier {
-      border: 3px solid var(--modifier-color);
-      box-shadow: 0 0 0 2px var(--modifier-color), 0 4px 8px var(--die-shadow);
+      background: linear-gradient(145deg,
+        color-mix(in srgb, var(--modifier-color) 25%, #fffef9) 0%,
+        color-mix(in srgb, var(--modifier-color) 35%, var(--die-bg)) 100%);
+      border-color: color-mix(in srgb, var(--modifier-color) 50%, var(--die-border));
     }
-    
+
     .die.selected {
       border: 3px solid var(--gold);
       box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(212, 175, 55, 0.5);
       transform: translateY(-3px);
       background: linear-gradient(145deg, #fffef0 0%, #fff9e6 100%);
     }
-    
+
     .die.selected.has-modifier {
-      box-shadow: 0 0 0 3px var(--gold), 0 0 0 6px var(--modifier-color), 0 0 12px rgba(212, 175, 55, 0.5);
+      background: linear-gradient(145deg,
+        color-mix(in srgb, var(--modifier-color) 20%, #fffef0) 0%,
+        color-mix(in srgb, var(--modifier-color) 30%, #fff9e6) 100%);
     }
     
     .die-order {
@@ -2508,7 +2498,6 @@
                style="${isModified ? `--modifier-color: ${mod.color}` : ''}">
             <span class="die-letter">${die.letter}</span>
             <span class="die-points">${die.points}</span>
-            ${isModified ? `<span class="die-modifier">${mod.shortName}</span>` : ''}
             ${isSelected ? `<span class="die-order">${order}</span>` : ''}
           </div>
         `;
