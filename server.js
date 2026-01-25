@@ -293,6 +293,12 @@ const PLACEMENT_POINTS = {
   3: 1,  // 3rd place
 };
 
+// Bot player names (picked randomly, prefixed with 🤖)
+const BOT_NAMES = [
+  'Bob', 'Luna', 'Max', 'Zoe', 'Finn', 'Ruby', 'Leo', 'Ivy',
+  'Ace', 'Milo', 'Nova', 'Rex', 'Cleo', 'Otto', 'Iris', 'Hugo'
+];
+
 // Generate unique lobby code
 function generateLobbyCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Avoid confusing characters
@@ -1343,11 +1349,21 @@ io.on('connection', (socket) => {
     }
 
     const botId = 'bot_' + Math.random().toString(36).substr(2, 6);
-    const aiNumber = Array.from(lobby.players.values()).filter(p => p.isBot).length + 1;
+
+    // Pick a random unused bot name
+    const usedNames = new Set(
+      Array.from(lobby.players.values())
+        .filter(p => p.isBot)
+        .map(p => p.name)
+    );
+    const availableNames = BOT_NAMES.filter(n => !usedNames.has(`🤖 ${n}`));
+    const botName = availableNames.length > 0
+      ? `🤖 ${availableNames[Math.floor(Math.random() * availableNames.length)]}`
+      : `🤖 Bot ${usedNames.size + 1}`;
 
     lobby.players.set(botId, {
       visibleId: botId,
-      name: data.name || `AI ${aiNumber}`,
+      name: data.name || botName,
       dice: [],
       totalPoints: 0,
       isHost: false,
