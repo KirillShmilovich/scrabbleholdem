@@ -827,10 +827,10 @@ Find the highest-scoring valid word. Consider the bonus!`;
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
   ], {
-    maxTokens: 10000,  // Must be > reasoning.max_tokens per OpenRouter docs
+    maxTokens: 2000,
     temperature: 0.3,
-    reasoning: { max_tokens: 8192 },
-    timeout: 60000,
+    reasoning: { max_tokens: 1024 },
+    timeout: 30000,
   });
 
   if (result.error) {
