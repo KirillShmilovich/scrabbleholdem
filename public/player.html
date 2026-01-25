@@ -1924,7 +1924,7 @@
           <button class="setting-btn" id="timerUp">+</button>
         </div>
       </div>
-      <button class="add-bot-btn" id="addBotBtn">+ Add Bot</button>
+      <button class="add-bot-btn" id="addBotBtn">+ Add AI Player</button>
     </div>
 
     <!-- Start Game (host only) -->
@@ -2390,7 +2390,7 @@
       // Render players
       const isHost = state.isHost;
       elements.waitingPlayersList.innerHTML = state.players.map(p => {
-        const connectionClass = p.isReconnecting ? 'reconnecting' : (!p.isConnected ? 'disconnected' : '');
+        const connectionClass = p.isReconnecting ? 'reconnecting' : (!p.isConnected && !p.isBot ? 'disconnected' : '');
         const hostClass = p.isHost ? 'host' : '';
 
         return `
@@ -2398,8 +2398,8 @@
             <span class="waiting-player-name">${p.name}</span>
             <div>
               ${p.isReconnecting ? '<span class="reconnecting-indicator">reconnecting...</span>' : ''}
-              ${!p.isConnected && !p.isReconnecting ? '<span class="reconnecting-indicator" style="color: #6b7280;">offline</span>' : ''}
-              ${p.isBot ? '<span class="waiting-player-badge bot">Bot</span>' : ''}
+              ${!p.isConnected && !p.isReconnecting && !p.isBot ? '<span class="reconnecting-indicator" style="color: #6b7280;">offline</span>' : ''}
+              ${p.isBot ? '<span class="waiting-player-badge bot">AI</span>' : ''}
               ${p.isHost ? '<span class="waiting-player-badge">Host</span>' : ''}
               ${p.visibleId === session?.visibleId ? '<span class="waiting-player-badge you">You</span>' : ''}
               ${p.isBot && isHost ? `<button class="remove-bot-btn" data-bot-id="${p.visibleId}">x</button>` : ''}
@@ -2905,7 +2905,6 @@
       elements.playersStatusList.innerHTML = players.map(p => {
         let statusClass = p.hasSubmitted ? 'submitted' : '';
         let statusText = p.name;
-        const botIndicator = p.isBot ? ' <span style="color: #a78bfa; font-size: 0.8em;">[Bot]</span>' : '';
 
         if (p.isReconnecting) {
           statusClass = 'reconnecting';
@@ -2920,7 +2919,7 @@
         return `
           <div class="player-status-item">
             <span class="player-status-dot ${statusClass}"></span>
-            <span class="player-status-name">${statusText}${botIndicator}</span>
+            <span class="player-status-name">${statusText}</span>
             <span class="player-status-score">${scoreDisplay} pts</span>
           </div>
         `;

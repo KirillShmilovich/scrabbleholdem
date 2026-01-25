@@ -496,9 +496,10 @@ function broadcastToLobby(lobby, event, data) {
 function getPlayerState(lobby, visibleId) {
   const player = lobby.players.get(visibleId);
   const players = Array.from(lobby.players.values()).map(p => {
-    const isConnected = lobby.playerSockets.has(p.visibleId);
-    const isReconnecting = !isConnected && p.disconnectedAt && (Date.now() - p.disconnectedAt < 30000);
-    
+    const isBot = p.isBot || false;
+    const isConnected = isBot || lobby.playerSockets.has(p.visibleId);
+    const isReconnecting = !isBot && !isConnected && p.disconnectedAt && (Date.now() - p.disconnectedAt < 30000);
+
     return {
       visibleId: p.visibleId,
       name: p.name,
@@ -507,6 +508,7 @@ function getPlayerState(lobby, visibleId) {
       hasSubmitted: lobby.playerSubmissions.has(p.visibleId),
       isConnected,
       isReconnecting,
+      isBot,
     };
   });
   
@@ -785,6 +787,8 @@ async function generateBotWord(lobby, botPlayer) {
   const modifier = lobby.modifier;
   const modifierDie = communityLetters[modifier.dieIndex];
 
+  console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}]`);
+
   const prompt = `You are playing a word game. Form the highest-scoring valid English word.
 
 AVAILABLE LETTERS:
@@ -814,11 +818,13 @@ Think about high-value letters and the modifier bonus. Pick a real English word.
   ], { maxTokens: 100, temperature: 0.3 });
 
   if (result.error) {
-    console.error('Bot word generation failed:', result.error);
+    console.error(`[AI] ${botPlayer.name} LLM error:`, result.error);
     return null;
   }
 
   const content = result.content || '';
+  console.log(`[AI] ${botPlayer.name} LLM response: "${content.substring(0, 150)}"`);
+
   const wordMatch = content.match(/WORD:\s*([A-Za-z]+)/i);
   const tilesMatch = content.match(/TILES:\s*([a-z0-9,\-\s]+)/i);
 
@@ -1025,9 +1031,15 @@ function validateAndScoreBotWord(lobby, player, word, tileIds) {
 function scheduleBotSubmission(lobby, botPlayer) {
   // Random delay 3-8 seconds
   const delay = 3000 + Math.random() * 5000;
+  console.log(`[AI] Scheduling ${botPlayer.name} submission in ${Math.round(delay/1000)}s`);
 
   setTimeout(async () => {
-    if (lobby.revealed) return; // Round already ended
+    console.log(`[AI] ${botPlayer.name} starting word generation...`);
+
+    if (lobby.revealed) {
+      console.log(`[AI] ${botPlayer.name} skipped - round already revealed`);
+      return;
+    }
 
     let attempts = 0;
     const maxAttempts = botPlayer.botRetries || 3;
@@ -1037,22 +1049,23 @@ function scheduleBotSubmission(lobby, botPlayer) {
 
       const result = await generateBotWord(lobby, botPlayer);
       if (!result) {
-        console.log(`Bot ${botPlayer.name} attempt ${attempts}: LLM returned no result`);
+        console.log(`[AI] ${botPlayer.name} attempt ${attempts}: LLM returned no parseable result`);
         continue;
       }
 
+      console.log(`[AI] ${botPlayer.name} attempt ${attempts}: trying word="${result.word}" tiles=[${result.tileIds.join(',')}]`);
       const validation = validateAndScoreBotWord(lobby, botPlayer, result.word, result.tileIds);
 
       if (validation.isValid) {
         submitBotWord(lobby, botPlayer, validation);
-        console.log(`Bot ${botPlayer.name} submitted: "${validation.word}" (${validation.score} pts) after ${attempts} attempt(s)`);
+        console.log(`[AI] ${botPlayer.name} submitted: "${validation.word}" (${validation.score} pts) after ${attempts} attempt(s)`);
         return;
       }
 
-      console.log(`Bot ${botPlayer.name} attempt ${attempts} failed: ${validation.reason}`);
+      console.log(`[AI] ${botPlayer.name} attempt ${attempts} failed: ${validation.reason}`);
     }
 
-    console.log(`Bot ${botPlayer.name} failed to find valid word after ${maxAttempts} attempts`);
+    console.log(`[AI] ${botPlayer.name} failed to find valid word after ${maxAttempts} attempts`);
   }, delay);
 }
 
@@ -1309,7 +1322,7 @@ io.on('connection', (socket) => {
     broadcastToLobby(lobby, 'lobby:settingsUpdated', lobby.settings);
   });
 
-  // Add bot player (host only)
+  // Add AI player (host only)
   socket.on('lobby:addBot', (data) => {
     const lobby = lobbies.get(socket.lobbyCode);
     if (!lobby) return;
@@ -1318,16 +1331,16 @@ io.on('connection', (socket) => {
     if (!player?.isHost) return;
 
     if (lobby.status !== 'waiting') {
-      socket.emit('lobby:error', { message: 'Cannot add bots during game' });
+      socket.emit('lobby:error', { message: 'Cannot add AI during game' });
       return;
     }
 
     const botId = 'bot_' + Math.random().toString(36).substr(2, 6);
-    const botNumber = Array.from(lobby.players.values()).filter(p => p.isBot).length + 1;
+    const aiNumber = Array.from(lobby.players.values()).filter(p => p.isBot).length + 1;
 
     lobby.players.set(botId, {
       visibleId: botId,
-      name: data.name || `Bot ${botNumber}`,
+      name: data.name || `AI ${aiNumber}`,
       dice: [],
       totalPoints: 0,
       isHost: false,
@@ -1335,11 +1348,11 @@ io.on('connection', (socket) => {
       botRetries: data.retries || 3,
     });
 
-    console.log(`Bot ${botId} added to lobby ${lobby.code}`);
+    console.log(`[AI] Added AI player ${botId} to lobby ${lobby.code}`);
     broadcastPlayerList(lobby);
   });
 
-  // Remove bot player (host only)
+  // Remove AI player (host only)
   socket.on('lobby:removeBot', (data) => {
     const lobby = lobbies.get(socket.lobbyCode);
     if (!lobby) return;
@@ -1351,12 +1364,12 @@ io.on('connection', (socket) => {
     if (!bot?.isBot) return;
 
     if (lobby.status !== 'waiting') {
-      socket.emit('lobby:error', { message: 'Cannot remove bots during game' });
+      socket.emit('lobby:error', { message: 'Cannot remove AI during game' });
       return;
     }
 
     lobby.players.delete(data.botId);
-    console.log(`Bot ${data.botId} removed from lobby ${lobby.code}`);
+    console.log(`[AI] Removed AI player ${data.botId} from lobby ${lobby.code}`);
     broadcastPlayerList(lobby);
   });
 
