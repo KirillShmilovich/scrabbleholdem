@@ -435,15 +435,22 @@ function startNewRound(lobby) {
   lobby.currentFunFactImage = null;
   lobby.timerRemaining = lobby.settings.timerDuration;
   lobby.timerHalved = false;
-  
+
   // Roll new dice for all players
   lobby.players.forEach((player, visibleId) => {
     player.dice = rollPlayerDice(lobby);
   });
-  
+
   // Start the timer
   startTimer(lobby);
-  
+
+  // Schedule bot submissions
+  lobby.players.forEach((player, visibleId) => {
+    if (player.isBot) {
+      scheduleBotSubmission(lobby, player);
+    }
+  });
+
   return lobby;
 }
 
@@ -757,6 +764,335 @@ function revealResults(lobby) {
   }
 }
 
+// ============================================================================
+// Bot Player Functions
+// ============================================================================
+
+// Generate a word for a bot player using LLM
+async function generateBotWord(lobby, botPlayer) {
+  const communityLetters = lobby.communityDice.map((d, i) => ({
+    id: `community-${i}`,
+    letter: d.letter,
+    points: d.points,
+  }));
+
+  const playerLetters = botPlayer.dice.map((d, i) => ({
+    id: `player-${i}`,
+    letter: d.letter,
+    points: d.points,
+  }));
+
+  const modifier = lobby.modifier;
+  const modifierDie = communityLetters[modifier.dieIndex];
+
+  const prompt = `You are playing a word game. Form the highest-scoring valid English word.
+
+AVAILABLE LETTERS:
+Community dice: ${communityLetters.map(d => d.letter).join(', ')}
+Your private dice: ${playerLetters.map(d => d.letter).join(', ')}
+
+RULES:
+- Use any combination of community + private letters
+- MUST use at least one of your private letters (${playerLetters.map(d => d.letter).join(', ')})
+- Each die can only be used once
+- Word must be a valid English word (2+ letters)
+
+MODIFIER: ${modifier.name} - ${modifier.desc}
+The modifier applies to community die "${modifierDie.letter}" (position ${modifier.dieIndex + 1})
+
+SCORING:
+Letter points: ${[...communityLetters, ...playerLetters].map(d => `${d.letter}=${d.points}`).join(', ')}
+
+OUTPUT FORMAT (exactly this, nothing else):
+WORD: [your word in uppercase]
+TILES: [comma-separated list of tiles used, e.g., "community-0,community-2,player-1"]
+
+Think about high-value letters and the modifier bonus. Pick a real English word.`;
+
+  const result = await callOpenRouter([
+    { role: 'user', content: prompt }
+  ], { maxTokens: 100, temperature: 0.3 });
+
+  if (result.error) {
+    console.error('Bot word generation failed:', result.error);
+    return null;
+  }
+
+  const content = result.content || '';
+  const wordMatch = content.match(/WORD:\s*([A-Za-z]+)/i);
+  const tilesMatch = content.match(/TILES:\s*([a-z0-9,\-\s]+)/i);
+
+  if (!wordMatch || !tilesMatch) {
+    console.log('Bot response parse failed:', content.substring(0, 100));
+    return null;
+  }
+
+  const word = wordMatch[1].toUpperCase();
+  const tileIds = tilesMatch[1].split(',').map(t => t.trim());
+
+  return { word, tileIds };
+}
+
+// Validate bot's word and calculate score server-side
+function validateAndScoreBotWord(lobby, player, word, tileIds) {
+  // Check word is in dictionary
+  if (!dictionary.has(word.toUpperCase())) {
+    return { isValid: false, reason: 'not in dictionary' };
+  }
+
+  const communityDice = lobby.communityDice;
+  const playerDice = player.dice;
+
+  let builtWord = '';
+  let usesPlayerDie = false;
+  const usedTiles = new Set();
+  const wordDice = [];
+
+  for (const tileId of tileIds) {
+    if (usedTiles.has(tileId)) {
+      return { isValid: false, reason: 'duplicate tile' };
+    }
+    usedTiles.add(tileId);
+
+    let die;
+    let dieIndex;
+    if (tileId.startsWith('community-')) {
+      dieIndex = parseInt(tileId.split('-')[1]);
+      die = communityDice[dieIndex];
+    } else if (tileId.startsWith('player-')) {
+      dieIndex = parseInt(tileId.split('-')[1]);
+      die = playerDice[dieIndex];
+      usesPlayerDie = true;
+    }
+
+    if (!die) {
+      return { isValid: false, reason: `invalid tile: ${tileId}` };
+    }
+
+    builtWord += die.letter;
+    wordDice.push({ id: tileId, die, dieIndex });
+  }
+
+  if (builtWord.toUpperCase() !== word.toUpperCase()) {
+    return { isValid: false, reason: `tiles "${builtWord}" do not match word "${word}"` };
+  }
+
+  if (!usesPlayerDie) {
+    return { isValid: false, reason: 'must use player die' };
+  }
+
+  // Calculate score using modifier logic
+  const modifier = lobby.modifier;
+  const modifierDieId = `community-${modifier.dieIndex}`;
+  const modifierTileIndex = tileIds.indexOf(modifierDieId);
+  const modifierSelected = modifierTileIndex >= 0;
+
+  // Calculate actual letter count (tiles like "Qu" count as 2 letters)
+  const letterCount = wordDice.reduce((sum, wd) => sum + wd.die.letter.length, 0);
+
+  // Calculate the letter position where the modifier tile starts
+  const modifierLetterPos = modifierTileIndex >= 0
+    ? wordDice.slice(0, modifierTileIndex).reduce((sum, wd) => sum + wd.die.letter.length, 0)
+    : -1;
+
+  // Helper: check if modifier tile contains a specific letter position
+  const tileContainsLetterPos = (targetPos) => {
+    if (modifierTileIndex < 0) return false;
+    const tileLen = wordDice[modifierTileIndex].die.letter.length;
+    return targetPos >= modifierLetterPos && targetPos < modifierLetterPos + tileLen;
+  };
+
+  let modifierApplies = false;
+  let modifierMultiplier = 1;
+  let modifierBonusPoints = 0;
+
+  if (modifierSelected) {
+    const modDie = wordDice[modifierTileIndex].die;
+    const modTileLen = modDie.letter.length;
+
+    switch (modifier.type) {
+      case 'multiply':
+        modifierApplies = true;
+        modifierMultiplier = modifier.multiplier;
+        break;
+
+      case 'position':
+        if (modifier.position === 'start' && modifierLetterPos === 0) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'end' && modifierLetterPos + modTileLen === letterCount) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'middle' && modifierLetterPos > 0 && modifierLetterPos + modTileLen < letterCount) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'second' && tileContainsLetterPos(1)) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'penultimate' && tileContainsLetterPos(letterCount - 2) && letterCount >= 2) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'center' && letterCount % 2 === 1 && tileContainsLetterPos(Math.floor(letterCount / 2))) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        }
+        break;
+
+      case 'length':
+        if (modifier.minLength && letterCount >= modifier.minLength) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus || 0;
+          modifierMultiplier = modifier.multiplier || 1;
+        } else if (modifier.exactLength && letterCount === modifier.exactLength) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus || 0;
+          modifierMultiplier = modifier.multiplier || 1;
+        }
+        break;
+
+      case 'parity':
+        const isOdd = letterCount % 2 === 1;
+        if ((modifier.parity === 'odd' && isOdd) || (modifier.parity === 'even' && !isOdd)) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        }
+        break;
+
+      case 'neighbor':
+        const prevTile = modifierTileIndex > 0 ? wordDice[modifierTileIndex - 1].die : null;
+        const nextTile = modifierTileIndex < wordDice.length - 1 ? wordDice[modifierTileIndex + 1].die : null;
+        const vowels = 'AEIOUaeiou';
+        const prevEndsWithVowel = prevTile && vowels.includes(prevTile.letter.slice(-1));
+        const nextStartsWithVowel = nextTile && vowels.includes(nextTile.letter[0]);
+        if (prevEndsWithVowel || nextStartsWithVowel) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        }
+        break;
+
+      case 'composition':
+        const wordString = wordDice.map(wd => wd.die.letter).join('');
+        const vowelCount = [...wordString].filter(c => 'AEIOUaeiou'.includes(c)).length;
+        const consonantCount = letterCount - vowelCount;
+        if (modifier.compositionType === 'balanced' && vowelCount === consonantCount) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        } else if (modifier.compositionType === 'vowelRich' && vowelCount > consonantCount) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        }
+        break;
+
+      case 'bonus':
+        modifierApplies = true;
+        modifierBonusPoints = modifier.bonus;
+        break;
+    }
+  }
+
+  // Calculate score
+  let baseScore = 0;
+  const letterScores = [];
+
+  wordDice.forEach((wd, idx) => {
+    let points = wd.die.points;
+    const isModified = wd.id === modifierDieId;
+
+    if (isModified && modifierApplies && modifierMultiplier > 1) {
+      points *= modifierMultiplier;
+    }
+
+    baseScore += points;
+    letterScores.push({ letter: wd.die.letter, points });
+  });
+
+  const totalScore = baseScore + modifierBonusPoints;
+  let breakdown = letterScores.map(l => `${l.letter}(${l.points})`).join(' + ');
+  if (modifierBonusPoints > 0) {
+    breakdown += ` + ${modifierBonusPoints}`;
+  }
+  breakdown += ` = ${totalScore}`;
+
+  return {
+    isValid: true,
+    word: builtWord.toUpperCase(),
+    score: totalScore,
+    breakdown,
+  };
+}
+
+// Schedule bot word submission after random delay
+function scheduleBotSubmission(lobby, botPlayer) {
+  // Random delay 3-8 seconds
+  const delay = 3000 + Math.random() * 5000;
+
+  setTimeout(async () => {
+    if (lobby.revealed) return; // Round already ended
+
+    let attempts = 0;
+    const maxAttempts = botPlayer.botRetries || 3;
+
+    while (attempts < maxAttempts) {
+      attempts++;
+
+      const result = await generateBotWord(lobby, botPlayer);
+      if (!result) {
+        console.log(`Bot ${botPlayer.name} attempt ${attempts}: LLM returned no result`);
+        continue;
+      }
+
+      const validation = validateAndScoreBotWord(lobby, botPlayer, result.word, result.tileIds);
+
+      if (validation.isValid) {
+        submitBotWord(lobby, botPlayer, validation);
+        console.log(`Bot ${botPlayer.name} submitted: "${validation.word}" (${validation.score} pts) after ${attempts} attempt(s)`);
+        return;
+      }
+
+      console.log(`Bot ${botPlayer.name} attempt ${attempts} failed: ${validation.reason}`);
+    }
+
+    console.log(`Bot ${botPlayer.name} failed to find valid word after ${maxAttempts} attempts`);
+  }, delay);
+}
+
+// Submit bot's word (same logic as human submission)
+function submitBotWord(lobby, botPlayer, validation) {
+  if (lobby.revealed) return;
+
+  const isNewSubmission = !lobby.playerSubmissions.has(botPlayer.visibleId);
+
+  lobby.playerSubmissions.set(botPlayer.visibleId, {
+    word: validation.word,
+    score: validation.score,
+    breakdown: validation.breakdown,
+    isValid: true,
+    playerLetters: botPlayer.dice.map(d => d.letter).join(''),
+    timestamp: Date.now(),
+  });
+
+  // Halve timer on first submission (same as human)
+  const allSubmitted = lobby.playerSubmissions.size === lobby.players.size;
+  if (isNewSubmission && !allSubmitted && lobby.timerRemaining > 10) {
+    const newTime = Math.max(10, Math.floor(lobby.timerRemaining / 2));
+    console.log(`Bot ${botPlayer.name} submitted! Timer halved: ${lobby.timerRemaining}s → ${newTime}s`);
+    lobby.timerRemaining = newTime;
+
+    broadcastToLobby(lobby, 'game:timerHalved', {
+      remaining: lobby.timerRemaining,
+      playerName: botPlayer.name,
+    });
+  }
+
+  broadcastPlayerList(lobby);
+
+  // Check if all players submitted
+  if (lobby.playerSubmissions.size === lobby.players.size) {
+    console.log(`All players submitted in lobby ${lobby.code}. Ending round early.`);
+    revealResults(lobby);
+  }
+}
+
 // Health check endpoint (keeps Render from sleeping as fast)
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -958,21 +1294,72 @@ io.on('connection', (socket) => {
   socket.on('lobby:updateSettings', (data) => {
     const lobby = lobbies.get(socket.lobbyCode);
     if (!lobby) return;
-    
+
     const player = lobby.players.get(socket.visibleId);
     if (!player?.isHost) return;
-    
+
     if (data.totalRounds) {
       lobby.settings.totalRounds = Math.min(20, Math.max(3, data.totalRounds));
     }
     if (data.timerDuration) {
       lobby.settings.timerDuration = Math.min(600, Math.max(30, data.timerDuration));
     }
-    
+
     // Broadcast updated settings
     broadcastToLobby(lobby, 'lobby:settingsUpdated', lobby.settings);
   });
-  
+
+  // Add bot player (host only)
+  socket.on('lobby:addBot', (data) => {
+    const lobby = lobbies.get(socket.lobbyCode);
+    if (!lobby) return;
+
+    const player = lobby.players.get(socket.visibleId);
+    if (!player?.isHost) return;
+
+    if (lobby.status !== 'waiting') {
+      socket.emit('lobby:error', { message: 'Cannot add bots during game' });
+      return;
+    }
+
+    const botId = 'bot_' + Math.random().toString(36).substr(2, 6);
+    const botNumber = Array.from(lobby.players.values()).filter(p => p.isBot).length + 1;
+
+    lobby.players.set(botId, {
+      visibleId: botId,
+      name: data.name || `Bot ${botNumber}`,
+      dice: [],
+      totalPoints: 0,
+      isHost: false,
+      isBot: true,
+      botRetries: data.retries || 3,
+    });
+
+    console.log(`Bot ${botId} added to lobby ${lobby.code}`);
+    broadcastPlayerList(lobby);
+  });
+
+  // Remove bot player (host only)
+  socket.on('lobby:removeBot', (data) => {
+    const lobby = lobbies.get(socket.lobbyCode);
+    if (!lobby) return;
+
+    const player = lobby.players.get(socket.visibleId);
+    if (!player?.isHost) return;
+
+    const bot = lobby.players.get(data.botId);
+    if (!bot?.isBot) return;
+
+    if (lobby.status !== 'waiting') {
+      socket.emit('lobby:error', { message: 'Cannot remove bots during game' });
+      return;
+    }
+
+    lobby.players.delete(data.botId);
+    console.log(`Bot ${data.botId} removed from lobby ${lobby.code}`);
+    broadcastPlayerList(lobby);
+  });
+
   // Start game (host only)
   socket.on('game:start', () => {
     const lobby = lobbies.get(socket.lobbyCode);
@@ -1381,9 +1768,10 @@ io.on('connection', (socket) => {
 // Broadcast updated player list to all in lobby
 function broadcastPlayerList(lobby) {
   const players = Array.from(lobby.players.values()).map(p => {
-    const isConnected = lobby.playerSockets.has(p.visibleId);
-    const isReconnecting = !isConnected && p.disconnectedAt && (Date.now() - p.disconnectedAt < 30000);
-    
+    const isBot = p.isBot || false;
+    const isConnected = isBot || lobby.playerSockets.has(p.visibleId);
+    const isReconnecting = !isBot && !isConnected && p.disconnectedAt && (Date.now() - p.disconnectedAt < 30000);
+
     return {
       visibleId: p.visibleId,
       name: p.name,
@@ -1392,6 +1780,7 @@ function broadcastPlayerList(lobby) {
       hasSubmitted: lobby.playerSubmissions.has(p.visibleId),
       isConnected,
       isReconnecting, // True for first 30 seconds after disconnect
+      isBot,
     };
   });
   

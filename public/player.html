@@ -316,7 +316,29 @@
       background: var(--felt-light);
       color: var(--cream);
     }
-    
+
+    .waiting-player-badge.bot {
+      background: rgba(139, 92, 246, 0.3);
+      color: #a78bfa;
+      border: 1px solid rgba(139, 92, 246, 0.4);
+    }
+
+    .remove-bot-btn {
+      padding: 2px 8px;
+      margin-left: 6px;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: #f87171;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .remove-bot-btn:hover {
+      background: rgba(239, 68, 68, 0.4);
+    }
+
     /* Settings (host only) */
     .lobby-settings {
       width: 100%;
@@ -381,7 +403,27 @@
       font-weight: 600;
       color: var(--cream);
     }
-    
+
+    .add-bot-btn {
+      width: 100%;
+      margin-top: var(--space-md);
+      padding: var(--space-sm) var(--space-md);
+      background: rgba(139, 92, 246, 0.2);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #a78bfa;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .add-bot-btn:hover {
+      background: rgba(139, 92, 246, 0.3);
+      border-color: rgba(139, 92, 246, 0.6);
+    }
+
     .start-game-btn {
       padding: var(--space-lg) var(--space-2xl);
       background: linear-gradient(135deg, #22c55e, #16a34a);
@@ -1882,10 +1924,11 @@
           <button class="setting-btn" id="timerUp">+</button>
         </div>
       </div>
+      <button class="add-bot-btn" id="addBotBtn">+ Add Bot</button>
     </div>
-    
+
     <!-- Start Game (host only) -->
-    <button class="start-game-btn" id="startGameBtn">🎲 Start Game</button>
+    <button class="start-game-btn" id="startGameBtn">Start Game</button>
     
     <!-- Waiting message (non-host) -->
     <p class="waiting-message hidden" id="waitingMessage">Waiting for host to start...</p>
@@ -2125,6 +2168,7 @@
       hostSettings: document.getElementById('hostSettings'),
       roundsValue: document.getElementById('roundsValue'),
       timerValue: document.getElementById('timerValue'),
+      addBotBtn: document.getElementById('addBotBtn'),
       startGameBtn: document.getElementById('startGameBtn'),
       waitingMessage: document.getElementById('waitingMessage'),
       leaveLobbyBtn: document.getElementById('leaveLobbyBtn'),
@@ -2338,39 +2382,49 @@
     
     function updateWaitingRoom(state) {
       currentState = state;
-      
+
       elements.lobbyCodeDisplay.textContent = state.lobbyCode;
       elements.shareLinkInput.value = generateShareLink(state.lobbyCode);
       elements.playerCount.textContent = state.players.length;
-      
+
       // Render players
+      const isHost = state.isHost;
       elements.waitingPlayersList.innerHTML = state.players.map(p => {
         const connectionClass = p.isReconnecting ? 'reconnecting' : (!p.isConnected ? 'disconnected' : '');
         const hostClass = p.isHost ? 'host' : '';
-        
+
         return `
           <div class="waiting-player ${hostClass} ${connectionClass}">
             <span class="waiting-player-name">${p.name}</span>
             <div>
               ${p.isReconnecting ? '<span class="reconnecting-indicator">reconnecting...</span>' : ''}
               ${!p.isConnected && !p.isReconnecting ? '<span class="reconnecting-indicator" style="color: #6b7280;">offline</span>' : ''}
+              ${p.isBot ? '<span class="waiting-player-badge bot">Bot</span>' : ''}
               ${p.isHost ? '<span class="waiting-player-badge">Host</span>' : ''}
               ${p.visibleId === session?.visibleId ? '<span class="waiting-player-badge you">You</span>' : ''}
+              ${p.isBot && isHost ? `<button class="remove-bot-btn" data-bot-id="${p.visibleId}">x</button>` : ''}
             </div>
           </div>
         `;
       }).join('');
-      
+
+      // Attach remove bot handlers
+      document.querySelectorAll('.remove-bot-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          socket.emit('lobby:removeBot', { botId: btn.dataset.botId });
+        });
+      });
+
       // Show/hide host controls
-      const isHost = state.isHost;
       elements.hostSettings.style.display = isHost ? 'block' : 'none';
       elements.startGameBtn.style.display = isHost ? 'block' : 'none';
       elements.waitingMessage.classList.toggle('hidden', isHost);
-      
+
       // Update settings display
       elements.roundsValue.textContent = state.settings.totalRounds;
       elements.timerValue.textContent = formatTime(state.settings.timerDuration);
-      
+
       // Disable start if no players (allow solo play)
       elements.startGameBtn.disabled = state.players.length < 1;
     }
@@ -2402,7 +2456,11 @@
       elements.timerValue.textContent = formatTime(settingsTimer);
       socket.emit('lobby:updateSettings', { timerDuration: settingsTimer });
     });
-    
+
+    elements.addBotBtn.addEventListener('click', () => {
+      socket.emit('lobby:addBot', {});
+    });
+
     elements.startGameBtn.addEventListener('click', () => {
       socket.emit('game:start');
     });
@@ -2847,11 +2905,12 @@
       elements.playersStatusList.innerHTML = players.map(p => {
         let statusClass = p.hasSubmitted ? 'submitted' : '';
         let statusText = p.name;
+        const botIndicator = p.isBot ? ' <span style="color: #a78bfa; font-size: 0.8em;">[Bot]</span>' : '';
 
         if (p.isReconnecting) {
           statusClass = 'reconnecting';
           statusText = `${p.name} ⟳`;
-        } else if (!p.isConnected) {
+        } else if (!p.isConnected && !p.isBot) {
           statusClass = 'offline';
           statusText = `${p.name} (offline)`;
         }
@@ -2861,7 +2920,7 @@
         return `
           <div class="player-status-item">
             <span class="player-status-dot ${statusClass}"></span>
-            <span class="player-status-name">${statusText}</span>
+            <span class="player-status-name">${statusText}${botIndicator}</span>
             <span class="player-status-score">${scoreDisplay} pts</span>
           </div>
         `;
