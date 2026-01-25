@@ -814,21 +814,23 @@ RULES:
 
 SCORING: Points = sum of letter values (shown in parentheses) + bonus if conditions met.
 
-OUTPUT FORMAT:
+OUTPUT FORMAT (exactly two lines):
 WORD: [uppercase word]
 TILES: [comma-separated tile IDs spelling the word in order]
 
-Example: WORD: CASTE / TILES: community-0,community-1,player-0,community-2,player-1
+Example:
+WORD: CASTE
+TILES: community-0,community-1,player-0,community-2,player-1
 
 Find the highest-scoring valid word. Consider the bonus!`;
 
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
   ], {
-    maxTokens: 4096,  // Must be > reasoning.max_tokens
-    temperature: 0.4,
-    reasoning: { max_tokens: 2048 },
-    timeout: 30000,  // 30s timeout to allow more retry attempts
+    maxTokens: 10000,  // Must be > reasoning.max_tokens per OpenRouter docs
+    temperature: 0.3,
+    reasoning: { max_tokens: 8192 },
+    timeout: 60000,
   });
 
   if (result.error) {
