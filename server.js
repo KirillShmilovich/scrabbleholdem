@@ -88,6 +88,7 @@ async function callOpenRouter(messages, options = {}) {
     model,
     maxTokens = 200,
     temperature = 0.7,
+    useDefaultTemperature = false,
     timeout = 30000,
     reasoning = { enabled: false }
   } = options;
@@ -99,8 +100,8 @@ async function callOpenRouter(messages, options = {}) {
     const body = {
       model: model || LLM_CONFIG.model,
       messages,
-      temperature,
     };
+    if (!useDefaultTemperature) body.temperature = temperature;
     if (maxTokens !== null) body.max_tokens = maxTokens;
     if (reasoning) body.reasoning = reasoning;
 
@@ -812,9 +813,9 @@ Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}`;
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
   ], {
-    model: 'openai/gpt-oss-20b:free',
+    model: 'openai/gpt-oss-120b:free',
     maxTokens: 8192,
-    temperature: 0.3,
+    useDefaultTemperature: true,
     reasoning: { exclude: true },
     timeout: 60000,
   });
