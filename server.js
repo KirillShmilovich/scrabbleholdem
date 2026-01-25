@@ -814,8 +814,8 @@ TILES: player-1,community-1,community-3,player-0,community-0`;
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
   ], {
-    maxTokens: 16000,
-    temperature: 0.3,
+    maxTokens: 8192,
+    temperature: 0.25,
     reasoning: { effort: 'low' },
     timeout: 60000,
   });
