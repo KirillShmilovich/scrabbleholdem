@@ -793,31 +793,27 @@ async function generateBotWord(lobby, botPlayer) {
   const modifier = lobby.modifier;
   console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}]`);
 
-  const systemPrompt = `You are an expert word game player. Form a valid English word using the given tiles. Use at least one player tile. Each tile can only be used once.
+  const systemPrompt = `Word game: form a high-scoring valid English word from tiles. Use at least one player tile. Each tile once only.
 
-Prioritize a valid, common word over a risky high-scoring one. A solid 4-5 letter word beats an invalid 7-letter attempt.
+Goal: maximize points while ensuring validity. Pick a good word quickly - consider 2-3 options then decide. Don't overthink.
 
-Reply in exactly this format:
+Format:
 WORD: [word]
-TILES: [comma-separated tile IDs in spelling order]
+TILES: [tile IDs in order]
 
 Example:
 WORD: PLANT
 TILES: player-1,community-0,community-2,player-0,community-1`;
 
-  const userPrompt = `Community tiles: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
-Player tiles: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
-
-Bonus opportunity: "${modifier.name}" on community-${modifier.dieIndex} (${modifier.desc})
-
-Form the best word you can.`;
+  const userPrompt = `Community: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"`).join(', ')}
+Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}`;
 
   const result = await callOpenRouter([
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
   ], {
     model: 'openai/gpt-oss-20b:free',
-    maxTokens: null,
+    maxTokens: 8192,
     temperature: 0.3,
     reasoning: { exclude: true },
     timeout: 60000,
