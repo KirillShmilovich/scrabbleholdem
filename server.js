@@ -122,13 +122,11 @@ async function callOpenRouter(messages, options = {}) {
       return { error: data.error };
     }
 
+    // Log full response for debugging
+    console.log('[OpenRouter] Response:', JSON.stringify(data.choices?.[0], null, 2));
+
     const message = data.choices?.[0]?.message || {};
     let content = message.content || '';
-
-    // Debug: log when content is empty but reasoning exists
-    if (!content && message.reasoning) {
-      console.log('[DEBUG] Empty content with reasoning. Full message:', JSON.stringify(message, null, 2).substring(0, 500));
-    }
 
     // Clean up model-specific tokens (fallback for models that leak thinking into content)
     content = content
@@ -821,7 +819,7 @@ Form the best word you can.`;
     model: 'openai/gpt-oss-20b:free',
     maxTokens: null,
     temperature: 0.3,
-    reasoning: { effort: 'low' },
+    reasoning: { exclude: true },
     timeout: 60000,
   });
 
@@ -831,9 +829,6 @@ Form the best word you can.`;
   }
 
   const content = result.content || '';
-  if (result.reasoning) {
-    console.log(`[AI] ${botPlayer.name} used reasoning (${result.reasoning.length} chars)`);
-  }
   console.log(`[AI] ${botPlayer.name} LLM response: "${content.substring(0, 150)}"`);
 
   const wordMatch = content.match(/WORD:\s*([A-Za-z]+)/i);
