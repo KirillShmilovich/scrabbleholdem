@@ -816,7 +816,12 @@ Pick a common, real English word.`;
 
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
-  ], { maxTokens: 100, temperature: 0.3 });
+  ], {
+    maxTokens: 2000,  // Must be > reasoning.max_tokens
+    temperature: 0.3,
+    reasoning: { max_tokens: 1024 },
+    timeout: 60000,
+  });
 
   if (result.error) {
     console.error(`[AI] ${botPlayer.name} LLM error:`, result.error);
@@ -824,6 +829,9 @@ Pick a common, real English word.`;
   }
 
   const content = result.content || '';
+  if (result.reasoning) {
+    console.log(`[AI] ${botPlayer.name} used reasoning (${result.reasoning.length} chars)`);
+  }
   console.log(`[AI] ${botPlayer.name} LLM response: "${content.substring(0, 150)}"`);
 
   const wordMatch = content.match(/WORD:\s*([A-Za-z]+)/i);
