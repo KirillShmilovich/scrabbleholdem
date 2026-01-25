@@ -792,9 +792,11 @@ async function generateBotWord(lobby, botPlayer) {
   }));
 
   const modifier = lobby.modifier;
-  console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}]`);
+  console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}] modifier=${modifier.shortName} on community-${modifier.dieIndex}`);
 
   const systemPrompt = `Word game: form a high-scoring valid English word from tiles. Use at least one player tile. Each tile once only.
+
+Scoring: 1pt=A,E,I,O,U,L,N,R,S,T | 2pt=B,C,D,G,H,M,P | 3pt=F,K,V,W,Y | 4pt=J,X,Z,Qu
 
 Goal: maximize points while ensuring validity. The word you choose will be validated against the English Scrabble dictionary. Pick a good word quickly - consider 2-3 options then decide. Don't overthink.
 
@@ -806,8 +808,13 @@ Example:
 WORD: PLANT
 TILES: player-1,community-0,community-2,player-0,community-1`;
 
-  const userPrompt = `Community: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"`).join(', ')}
-Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}`;
+  // Build modifier description for the AI
+  const modifierTileId = `community-${modifier.dieIndex}`;
+  const modifierDesc = modifier.desc;
+
+  const userPrompt = `Community: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"${i === modifier.dieIndex ? ' [BONUS]' : ''}`).join(', ')}
+Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}
+Bonus on ${modifierTileId}: ${modifierDesc}`;
 
   const result = await callOpenRouter([
     { role: 'system', content: systemPrompt },
