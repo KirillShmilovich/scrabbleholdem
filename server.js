@@ -796,7 +796,7 @@ async function generateBotWord(lobby, botPlayer) {
 
   const systemPrompt = `Word game: form a high-scoring valid English word from tiles. Use at least one player tile. Each tile once only.
 
-Goal: maximize points while ensuring validity. Pick a good word quickly - consider 2-3 options then decide. Don't overthink.
+Goal: maximize points while ensuring validity. The word you choose will be validated against the English Scrabble dictionary. Pick a good word quickly - consider 2-3 options then decide. Don't overthink.
 
 Format:
 WORD: [word]
