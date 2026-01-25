@@ -790,15 +790,9 @@ async function generateBotWord(lobby, botPlayer) {
   }));
 
   const modifier = lobby.modifier;
-  const modifierDie = communityLetters[modifier.dieIndex];
-
   console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}]`);
 
-  // Build explicit tile list for clarity
-  const communityTileList = communityLetters.map(d => `${d.id}="${d.letter}"(${d.points}pts)`).join(', ');
-  const privateTileList = playerLetters.map(d => `${d.id}="${d.letter}"(${d.points}pts)`).join(', ');
-
-  const prompt = `You are competing to WIN a word game. Find the longest valid English word you can using these tiles.
+  const prompt = `You are competing in a word game with other players to form the highest-scoring valid English word.
 
 Community: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
 Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
@@ -807,11 +801,15 @@ Bonus: "${modifier.name}" on community-${modifier.dieIndex} - ${modifier.desc}
 
 Rules: Use at least one player tile. Each tile can only be used once.
 
+Your goal is to form a high-scoring word to compete with other players, but don't overthink it or spend too long trying to find the perfect word.
+
+Your word will be validated against the official Scrabble dictionary.
+
 You MUST output a word. Reply with exactly:
 WORD: [word]
 TILES: [tile IDs in order]
 
-Example: WORD: PLANT / TILES: player-0,community-1,community-3,community-2,player-1`;
+Example: WORD: PLANT / TILES: player-1,community-1,community-3,player-0,community-0`;
 
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
