@@ -119,6 +119,11 @@ async function callOpenRouter(messages, options = {}) {
       return { error: data.error };
     }
 
+    // Debug: log full response structure for reasoning calls
+    if (options.reasoning?.max_tokens) {
+      console.log('[DEBUG] OpenRouter response structure:', JSON.stringify(data.choices?.[0], null, 2).substring(0, 1000));
+    }
+
     const message = data.choices?.[0]?.message || {};
     let content = message.content || '';
 
