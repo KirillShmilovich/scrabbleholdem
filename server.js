@@ -1051,14 +1051,11 @@ function validateAndScoreBotWord(lobby, player, word, tileIds) {
   };
 }
 
-// Schedule bot word submission after random delay
+// Start bot word submission immediately
 function scheduleBotSubmission(lobby, botPlayer) {
-  // Random delay 3-8 seconds
-  const delay = 3000 + Math.random() * 5000;
-  console.log(`[AI] Scheduling ${botPlayer.name} submission in ${Math.round(delay/1000)}s`);
+  console.log(`[AI] ${botPlayer.name} starting word generation...`);
 
-  setTimeout(async () => {
-    console.log(`[AI] ${botPlayer.name} starting word generation...`);
+  (async () => {
 
     if (lobby.revealed) {
       console.log(`[AI] ${botPlayer.name} skipped - round already revealed`);
@@ -1090,7 +1087,7 @@ function scheduleBotSubmission(lobby, botPlayer) {
     }
 
     console.log(`[AI] ${botPlayer.name} failed to find valid word after ${maxAttempts} attempts`);
-  }, delay);
+  })();
 }
 
 // Submit bot's word (same logic as human submission)
