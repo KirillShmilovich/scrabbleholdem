@@ -122,13 +122,13 @@ async function callOpenRouter(messages, options = {}) {
       return { error: data.error };
     }
 
-    // Debug: log full response structure for reasoning calls
-    if (options.reasoning?.max_tokens) {
-      console.log('[DEBUG] OpenRouter response:', JSON.stringify(data.choices?.[0], null, 2));
-    }
-
     const message = data.choices?.[0]?.message || {};
     let content = message.content || '';
+
+    // Debug: log when content is empty but reasoning exists
+    if (!content && message.reasoning) {
+      console.log('[DEBUG] Empty content with reasoning. Full message:', JSON.stringify(message, null, 2).substring(0, 500));
+    }
 
     // Clean up model-specific tokens (fallback for models that leak thinking into content)
     content = content
@@ -795,11 +795,17 @@ async function generateBotWord(lobby, botPlayer) {
   const modifier = lobby.modifier;
   console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}]`);
 
-  const systemPrompt = `You are an expert word game player. Your goal is to form high-scoring valid English words from available tiles. You must use at least one player tile. Each tile can only be used once. Words are validated against the Scrabble dictionary.
+  const systemPrompt = `You are an expert word game player. Form a valid English word using the given tiles. Use at least one player tile. Each tile can only be used once.
+
+Prioritize a valid, common word over a risky high-scoring one. A solid 4-5 letter word beats an invalid 7-letter attempt.
 
 Reply in exactly this format:
 WORD: [word]
-TILES: [tile IDs in order, comma-separated]`;
+TILES: [comma-separated tile IDs in spelling order]
+
+Example:
+WORD: PLANT
+TILES: player-1,community-0,community-2,player-0,community-1`;
 
   const userPrompt = `Community tiles: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
 Player tiles: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
