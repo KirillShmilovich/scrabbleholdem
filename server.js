@@ -85,6 +85,7 @@ async function callOpenRouter(messages, options = {}) {
   if (!apiKey) return { error: 'API key not configured' };
 
   const {
+    model,
     maxTokens = 200,
     temperature = 0.7,
     timeout = 30000,
@@ -95,6 +96,14 @@ async function callOpenRouter(messages, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    const body = {
+      model: model || LLM_CONFIG.model,
+      messages,
+      temperature,
+    };
+    if (maxTokens !== null) body.max_tokens = maxTokens;
+    if (reasoning) body.reasoning = reasoning;
+
     const response = await fetch(LLM_CONFIG.apiUrl, {
       method: 'POST',
       headers: {
@@ -102,13 +111,7 @@ async function callOpenRouter(messages, options = {}) {
         ...LLM_CONFIG.headers,
       },
       signal: controller.signal,
-      body: JSON.stringify({
-        model: LLM_CONFIG.model,
-        messages,
-        reasoning,
-        max_tokens: maxTokens,
-        temperature,
-      })
+      body: JSON.stringify(body)
     });
 
     clearTimeout(timeoutId);
@@ -792,30 +795,26 @@ async function generateBotWord(lobby, botPlayer) {
   const modifier = lobby.modifier;
   console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}]`);
 
-  const prompt = `Word game: form a high-scoring valid English word.
+  const systemPrompt = `You are an expert word game player. Your goal is to form high-scoring valid English words from available tiles. You must use at least one player tile. Each tile can only be used once. Words are validated against the Scrabble dictionary.
 
-Community: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
-Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
-
-Rules: Use at least one player tile. Each tile once only. Word validated against Scrabble dictionary.
-
-Optional bonus: "${modifier.name}" on community-${modifier.dieIndex} (${modifier.desc})
-
-Think of a few options, pick the best one, and commit. Do not revisit or second-guess your choice once decided.
-
-Reply exactly:
+Reply in exactly this format:
 WORD: [word]
-TILES: [tile IDs in order]
+TILES: [tile IDs in order, comma-separated]`;
 
-Example:
-WORD: PLANT
-TILES: player-1,community-1,community-3,player-0,community-0`;
+  const userPrompt = `Community tiles: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
+Player tiles: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"(${d.points}pts)`).join(', ')}
+
+Bonus opportunity: "${modifier.name}" on community-${modifier.dieIndex} (${modifier.desc})
+
+Form the best word you can.`;
 
   const result = await callOpenRouter([
-    { role: 'user', content: prompt }
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt }
   ], {
-    maxTokens: 8192,
-    temperature: 0.25,
+    model: 'openai/gpt-oss-20b:free',
+    maxTokens: null,
+    temperature: 0.3,
     reasoning: { effort: 'low' },
     timeout: 60000,
   });
