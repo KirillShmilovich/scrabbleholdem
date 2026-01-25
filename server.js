@@ -790,37 +790,45 @@ async function generateBotWord(lobby, botPlayer) {
   console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}]`);
 
   // Build explicit tile list for clarity
-  const communityTileList = communityLetters.map(d => `${d.id}="${d.letter}"`).join(', ');
-  const privateTileList = playerLetters.map(d => `${d.id}="${d.letter}"`).join(', ');
+  const communityTileList = communityLetters.map(d => `${d.id}="${d.letter}"(${d.points}pts)`).join(', ');
+  const privateTileList = playerLetters.map(d => `${d.id}="${d.letter}"(${d.points}pts)`).join(', ');
 
-  const prompt = `You are playing a word game. Form a valid English word using these letter tiles.
+  const prompt = `You are an expert Scrabble player competing to WIN. Find the HIGHEST-SCORING valid English word.
 
-AVAILABLE TILES (use these exact IDs):
-Community: ${communityTileList}
-Private: ${privateTileList}
+TILES AVAILABLE (with point values):
+Community tiles: ${communityTileList}
+Your tiles: ${privateTileList}
+
+BONUS THIS ROUND: "${modifier.name}" on community-${modifier.dieIndex} ("${modifierDie.letter}")
+Bonus effect: ${modifier.desc}
+
+TILE IDs:
+- Community tiles: community-0, community-1, community-2, community-3, community-4
+- Your tiles: player-0, player-1, player-2
+- IMPORTANT: Never use "private-X" - always use "player-X"
 
 RULES:
-- MUST use at least one private tile (player-0, player-1, or player-2)
-- Each tile can only be used once
-- Word must be a real English word (2+ letters)
-- Only use tiles from the list above
+1. MUST use at least one of your tiles (player-0, player-1, or player-2)
+2. Each tile can only be used once
+3. Must be a real English word
 
-OUTPUT FORMAT (exactly this):
-WORD: [word in uppercase]
-TILES: [tile IDs in order, e.g., community-0,player-1,community-2]
+SCORING: Points = sum of letter values (shown in parentheses) + bonus if conditions met.
 
-Example: If tiles are community-0="C", community-1="A", community-2="T", player-0="S"
-For word "CATS": WORD: CATS / TILES: community-0,community-1,player-0,community-2
+OUTPUT FORMAT:
+WORD: [uppercase word]
+TILES: [comma-separated tile IDs spelling the word in order]
 
-Pick a common, real English word.`;
+Example: WORD: CASTE / TILES: community-0,community-1,player-0,community-2,player-1
+
+Find the highest-scoring valid word. Consider the bonus!`;
 
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
   ], {
-    maxTokens: 2000,  // Must be > reasoning.max_tokens
-    temperature: 0.3,
-    reasoning: { max_tokens: 1024 },
-    timeout: 60000,
+    maxTokens: 6000,  // Must be > reasoning.max_tokens
+    temperature: 0.4,
+    reasoning: { max_tokens: 4096 },
+    timeout: 90000,
   });
 
   if (result.error) {
