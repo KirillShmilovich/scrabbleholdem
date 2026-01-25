@@ -121,7 +121,7 @@ async function callOpenRouter(messages, options = {}) {
 
     // Debug: log full response structure for reasoning calls
     if (options.reasoning?.max_tokens) {
-      console.log('[DEBUG] OpenRouter response structure:', JSON.stringify(data.choices?.[0], null, 2).substring(0, 1000));
+      console.log('[DEBUG] OpenRouter response:', JSON.stringify(data.choices?.[0], null, 2));
     }
 
     const message = data.choices?.[0]?.message || {};
@@ -832,10 +832,10 @@ Find the highest-scoring valid word. Consider the bonus!`;
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
   ], {
-    maxTokens: 2000,
+    maxTokens: 8000,
     temperature: 0.3,
-    reasoning: { max_tokens: 1024 },
-    timeout: 30000,
+    reasoning: { max_tokens: 4096 },
+    timeout: 45000,
   });
 
   if (result.error) {
