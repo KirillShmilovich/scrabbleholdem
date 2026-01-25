@@ -789,29 +789,30 @@ async function generateBotWord(lobby, botPlayer) {
 
   console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}]`);
 
-  const prompt = `You are playing a word game. Form the highest-scoring valid English word.
+  // Build explicit tile list for clarity
+  const communityTileList = communityLetters.map(d => `${d.id}="${d.letter}"`).join(', ');
+  const privateTileList = playerLetters.map(d => `${d.id}="${d.letter}"`).join(', ');
 
-AVAILABLE LETTERS:
-Community dice: ${communityLetters.map(d => d.letter).join(', ')}
-Your private dice: ${playerLetters.map(d => d.letter).join(', ')}
+  const prompt = `You are playing a word game. Form a valid English word using these letter tiles.
+
+AVAILABLE TILES (use these exact IDs):
+Community: ${communityTileList}
+Private: ${privateTileList}
 
 RULES:
-- Use any combination of community + private letters
-- MUST use at least one of your private letters (${playerLetters.map(d => d.letter).join(', ')})
-- Each die can only be used once
-- Word must be a valid English word (2+ letters)
+- MUST use at least one private tile (player-0, player-1, or player-2)
+- Each tile can only be used once
+- Word must be a real English word (2+ letters)
+- Only use tiles from the list above
 
-MODIFIER: ${modifier.name} - ${modifier.desc}
-The modifier applies to community die "${modifierDie.letter}" (position ${modifier.dieIndex + 1})
+OUTPUT FORMAT (exactly this):
+WORD: [word in uppercase]
+TILES: [tile IDs in order, e.g., community-0,player-1,community-2]
 
-SCORING:
-Letter points: ${[...communityLetters, ...playerLetters].map(d => `${d.letter}=${d.points}`).join(', ')}
+Example: If tiles are community-0="C", community-1="A", community-2="T", player-0="S"
+For word "CATS": WORD: CATS / TILES: community-0,community-1,player-0,community-2
 
-OUTPUT FORMAT (exactly this, nothing else):
-WORD: [your word in uppercase]
-TILES: [comma-separated list of tiles used, e.g., "community-0,community-2,player-1"]
-
-Think about high-value letters and the modifier bonus. Pick a real English word.`;
+Pick a common, real English word.`;
 
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
