@@ -798,44 +798,26 @@ async function generateBotWord(lobby, botPlayer) {
   const communityTileList = communityLetters.map(d => `${d.id}="${d.letter}"(${d.points}pts)`).join(', ');
   const privateTileList = playerLetters.map(d => `${d.id}="${d.letter}"(${d.points}pts)`).join(', ');
 
-  const prompt = `You are an expert Scrabble player competing to WIN. Find the HIGHEST-SCORING valid English word.
+  const prompt = `You are playing a Scrabble-style word game. Your goal is to form the highest-scoring valid English word, but prioritize finding a valid word quickly over finding the perfect word.
 
-TILES AVAILABLE (with point values):
-Community tiles: ${communityTileList}
-Your tiles: ${privateTileList}
+Community: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"`).join(', ')}
+Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}
 
-BONUS THIS ROUND: "${modifier.name}" on community-${modifier.dieIndex} ("${modifierDie.letter}")
-Bonus effect: ${modifier.desc}
+Rules: Use at least one player tile. Each tile can only be used once.
 
-TILE IDs:
-- Community tiles: community-0, community-1, community-2, community-3, community-4
-- Your tiles: player-0, player-1, player-2
-- IMPORTANT: Never use "private-X" - always use "player-X"
+Reply with exactly:
+WORD: [word]
+TILES: [tile IDs in order]
 
-RULES:
-1. MUST use at least one of your tiles (player-0, player-1, or player-2)
-2. Each tile can only be used once
-3. Must be a real English word
-
-SCORING: Points = sum of letter values (shown in parentheses) + bonus if conditions met.
-
-OUTPUT FORMAT (exactly two lines):
-WORD: [uppercase word]
-TILES: [comma-separated tile IDs spelling the word in order]
-
-Example:
-WORD: CASTE
-TILES: community-0,community-1,player-0,community-2,player-1
-
-Find the highest-scoring valid word. Consider the bonus!`;
+Example: WORD: CAT / TILES: community-0,player-1,community-2`;
 
   const result = await callOpenRouter([
     { role: 'user', content: prompt }
   ], {
-    maxTokens: 8000,
-    temperature: 0.3,
-    reasoning: { max_tokens: 4096 },
-    timeout: 45000,
+    maxTokens: 16000,
+    temperature: 0.5,
+    reasoning: { max_tokens: 8000 },
+    timeout: 60000,
   });
 
   if (result.error) {
