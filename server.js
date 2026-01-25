@@ -801,7 +801,7 @@ Rules: Use at least one player tile. Each tile once only. Word validated against
 
 Optional bonus: "${modifier.name}" on community-${modifier.dieIndex} (${modifier.desc})
 
-Goal: Find a reasonably high-scoring word quickly. You have limited thinking time - balance word quality against actually producing a valid answer. Don't exhaust yourself searching for the perfect word.
+Think of a few options, pick the best one, and commit. Do not revisit or second-guess your choice once decided.
 
 Reply exactly:
 WORD: [word]
@@ -815,7 +815,7 @@ TILES: player-1,community-1,community-3,player-0,community-0`;
     { role: 'user', content: prompt }
   ], {
     maxTokens: 16000,
-    temperature: 0.5,
+    temperature: 0.3,
     reasoning: { max_tokens: 8000 },
     timeout: 60000,
   });
