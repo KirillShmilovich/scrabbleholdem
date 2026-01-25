@@ -816,7 +816,7 @@ TILES: player-1,community-1,community-3,player-0,community-0`;
   ], {
     maxTokens: 16000,
     temperature: 0.3,
-    reasoning: { max_tokens: 8000 },
+    reasoning: { effort: 'low' },
     timeout: 60000,
   });
 
