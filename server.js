@@ -806,13 +806,9 @@ Scoring: 1pt=A,E,I,O,U,L,N,R,S,T | 2pt=B,C,D,G,H,M,P | 3pt=F,K,V,W,Y | 4pt=J,X,Z
 
 Goal: maximize points while ensuring validity. The word you choose will be validated against the English Scrabble dictionary. Pick a good word quickly - consider 2-3 options then decide. Don't overthink.
 
-Format:
-WORD: [word]
-TILES: [tile IDs in order]
+Respond with JSON only: {"word":"YOURWORD","tiles":["tile-id-1","tile-id-2",...]}
 
-Example:
-WORD: PLANT
-TILES: player-1,community-0,community-2,player-0,community-1`;
+Example: {"word":"PLANT","tiles":["player-1","community-0","community-2","player-0","community-1"]}`;
 
   // Build modifier description for the AI
   const modifierTileId = `community-${modifier.dieIndex}`;
@@ -839,18 +835,30 @@ Bonus on ${modifierTileId}: ${modifierDesc}`;
   }
 
   const content = result.content || '';
-  console.log(`[AI] ${botPlayer.name} LLM response: "${content.substring(0, 150)}"`);
+  console.log(`[AI] ${botPlayer.name} LLM response: "${content.substring(0, 200)}"`);
 
-  const wordMatch = content.match(/WORD:\s*([A-Za-z]+)/i);
-  const tilesMatch = content.match(/TILES:\s*([a-z0-9,\-\s]+)/i);
-
-  if (!wordMatch || !tilesMatch) {
-    console.log('Bot response parse failed:', content.substring(0, 100));
+  // Parse JSON response
+  let parsed;
+  try {
+    // Extract JSON from response (handle markdown code blocks or extra text)
+    const jsonMatch = content.match(/\{[^}]+\}/);
+    if (!jsonMatch) {
+      console.log('Bot response parse failed - no JSON found:', content.substring(0, 100));
+      return null;
+    }
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    console.log('Bot response parse failed - invalid JSON:', content.substring(0, 100));
     return null;
   }
 
-  const word = wordMatch[1].toUpperCase();
-  const tileIds = tilesMatch[1].split(',').map(t => t.trim());
+  if (!parsed.word || !Array.isArray(parsed.tiles)) {
+    console.log('Bot response parse failed - missing word or tiles:', content.substring(0, 100));
+    return null;
+  }
+
+  const word = parsed.word.toUpperCase();
+  const tileIds = parsed.tiles.map(t => t.trim());
 
   return { word, tileIds };
 }
