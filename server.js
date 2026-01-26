@@ -154,10 +154,11 @@ async function callOpenRouter(messages, options = {}) {
 }
 
 // Call Gemini API
+// messages: array of {role: 'system'|'user'|'model', content: string}
 // Options:
 //   thinkingLevel: 'none', 'low', 'medium', 'high' (default 'low')
 //   timeout: request timeout in ms (default 30000)
-async function callGemini(prompt, options = {}) {
+async function callGemini(messages, options = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { error: 'Gemini API key not configured' };
 
@@ -171,16 +172,30 @@ async function callGemini(prompt, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    // Build request body with system_instruction and contents
     const body = {
-      contents: [{
-        parts: [{ text: prompt }]
-      }],
       generationConfig: {
         thinkingConfig: {
           thinkingLevel
         }
       }
     };
+
+    // Extract system instruction if present
+    const systemMsg = messages.find(m => m.role === 'system');
+    if (systemMsg) {
+      body.system_instruction = {
+        parts: [{ text: systemMsg.content }]
+      };
+    }
+
+    // Convert non-system messages to Gemini contents format
+    body.contents = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role === 'assistant' ? 'model' : m.role,
+        parts: [{ text: m.content }]
+      }));
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -891,7 +906,10 @@ Example: {"word":"PLANT","tiles":["player-1","community-0","community-2","player
 Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}
 Bonus on ${modifierTileId}: ${modifierDesc}`;
 
-  const result = await callGemini(`${systemPrompt}\n\n${userPrompt}`, {
+  const result = await callGemini([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt }
+  ], {
     thinkingLevel: 'low',
     timeout: 60000,
   });
