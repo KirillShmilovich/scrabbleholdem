@@ -153,6 +153,79 @@ async function callOpenRouter(messages, options = {}) {
   }
 }
 
+// Call Gemini API
+// Options:
+//   thinkingLevel: 'none', 'low', 'medium', 'high' (default 'low')
+//   timeout: request timeout in ms (default 30000)
+async function callGemini(prompt, options = {}) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { error: 'Gemini API key not configured' };
+
+  const {
+    model = 'gemini-3-flash-preview',
+    thinkingLevel = 'low',
+    timeout = 30000,
+  } = options;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const body = {
+      contents: [{
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        thinkingConfig: {
+          thinkingLevel
+        }
+      }
+    };
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify(body)
+      }
+    );
+
+    clearTimeout(timeoutId);
+    const data = await response.json();
+
+    // Log full response for debugging
+    console.log('[Gemini] Full API response:', JSON.stringify(data, null, 2));
+
+    if (data.error) {
+      console.error('[Gemini] Error:', data.error);
+      return { error: data.error.message || data.error };
+    }
+
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const usage = data.usageMetadata || {};
+    console.log('[Gemini] Content:', content);
+    console.log('[Gemini] Usage:', {
+      promptTokens: usage.promptTokenCount,
+      responseTokens: usage.candidatesTokenCount,
+      thinkingTokens: usage.thoughtsTokenCount,
+    });
+
+    return { content };
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.error('Gemini request timed out');
+      return { error: 'Request timed out' };
+    }
+    console.error('Gemini error:', err);
+    return { error: err.message };
+  }
+}
+
 // Transform a fun fact into an image-friendly prompt
 async function generateImagePrompt(funFact, words = []) {
   const cleanFact = funFact.replace(/\*\*/g, '');
@@ -818,14 +891,8 @@ Example: {"word":"PLANT","tiles":["player-1","community-0","community-2","player
 Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}
 Bonus on ${modifierTileId}: ${modifierDesc}`;
 
-  const result = await callOpenRouter([
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ], {
-    model: 'openai/gpt-oss-120b:free',
-    maxTokens: 8192,
-    useDefaultTemperature: true,
-    reasoning: { exclude: true },
+  const result = await callGemini(`${systemPrompt}\n\n${userPrompt}`, {
+    thinkingLevel: 'low',
     timeout: 60000,
   });
 
