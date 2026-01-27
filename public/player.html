@@ -3030,11 +3030,6 @@
       socket.emit('game:nextRound');
     });
 
-    elements.generateImageBtn.addEventListener('click', () => {
-      if (!currentFunFact) return;
-      socket.emit('game:generateFunFactImage', { funFact: currentFunFact });
-    });
-
     elements.finalResultsBtn.addEventListener('click', () => {
       showOverlay('🏆 Calculating...', 'Final results');
       socket.emit('game:viewFinalResults');
@@ -3287,21 +3282,15 @@
               elements.funFactText.innerHTML = renderMarkdown(data.roundResults.funFact);
               currentFunFact = data.roundResults.funFact;
               elements.funFactSection.style.display = 'flex';
-              // Show/hide generate image button based on host status and whether image exists
+              // Show image if it exists, otherwise show loading (images auto-generate)
               if (data.roundResults.funFactImage) {
                 // Image already generated - display it
                 elements.funFactImageContainer.className = 'fun-fact-image-container loaded';
                 elements.funFactImageContainer.innerHTML = `<img class="fun-fact-image" src="${data.roundResults.funFactImage}" alt="Generated image for fun fact">`;
-                elements.generateImageBtn.classList.add('hidden');
-              } else if (currentState?.isHost) {
-                // No image yet - host can generate one
-                elements.generateImageBtn.classList.remove('hidden');
-                elements.funFactImageContainer.className = 'fun-fact-image-container';
-                elements.funFactImageContainer.innerHTML = '';
               } else {
-                elements.generateImageBtn.classList.add('hidden');
-                elements.funFactImageContainer.className = 'fun-fact-image-container';
-                elements.funFactImageContainer.innerHTML = '';
+                // Image still generating
+                elements.funFactImageContainer.className = 'fun-fact-image-container loading';
+                elements.funFactImageContainer.innerHTML = '<span class="fun-fact-image-loading">Generating image</span>';
               }
             } else {
               // No fun fact available
@@ -3474,10 +3463,7 @@
         if (data.funFact) {
           elements.funFactText.innerHTML = renderMarkdown(data.funFact);
           currentFunFact = data.funFact;
-          // Show generate image button for host
-          if (currentState?.isHost) {
-            elements.generateImageBtn.classList.remove('hidden');
-          }
+          // Image will be auto-generated (no button needed)
         } else {
           elements.funFactSection.style.display = 'none';
         }
