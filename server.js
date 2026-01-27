@@ -262,7 +262,7 @@ Output: Only the prompt, one line. No quotes, no preamble, no parameters.
 
 Requirements:
 - Be vivid and descriptive: include lighting, atmosphere, composition, colors, textures
-- Keep it focused (roughly 40-60 words)
+- Be thorough but purposeful—every detail should serve the image
 - Single cohesive scene (no collage or split frames)
 - No visible text, letters, numbers, or signage in the scene
 - Choose an artistic style that fits the subject (photograph, illustration, painting, etc.)
