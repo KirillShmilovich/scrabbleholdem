@@ -940,7 +940,7 @@ function revealResults(lobby) {
 // ============================================================================
 
 // Generate a word for a bot player using LLM
-async function generateBotWord(lobby, botPlayer) {
+async function generateBotWord(lobby, botPlayer, failedAttempts = []) {
   const communityLetters = lobby.communityDice.map((d, i) => ({
     id: `community-${i}`,
     letter: d.letter,
@@ -956,7 +956,7 @@ async function generateBotWord(lobby, botPlayer) {
   const modifier = lobby.modifier;
   console.log(`[AI] ${botPlayer.name} generating word with letters: community=[${communityLetters.map(d => d.letter).join(',')}] private=[${playerLetters.map(d => d.letter).join(',')}] modifier=${modifier.shortName} on community-${modifier.dieIndex}`);
 
-  const systemPrompt = `Word game: form a high-scoring valid English word from tiles. Use at least one player tile. Each tile once only.
+  const systemPrompt = `Word game: form a high-scoring valid English word from tiles. Use at least one player tile. Each tile may be used only once.
 
 Scoring: 1pt=A,E,I,O,U,L,N,R,S,T | 2pt=B,C,D,G,H,M,P | 3pt=F,K,V,W,Y | 4pt=J,X,Z,Qu
 
@@ -970,9 +970,17 @@ Example: {"word":"PLANT","tiles":["player-1","community-0","community-2","player
   const modifierTileId = `community-${modifier.dieIndex}`;
   const modifierDesc = modifier.desc;
 
-  const userPrompt = `Community: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"${i === modifier.dieIndex ? ' [BONUS]' : ''}`).join(', ')}
+  let userPrompt = `Community: ${communityLetters.map((d, i) => `community-${i}="${d.letter}"${i === modifier.dieIndex ? ' [BONUS]' : ''}`).join(', ')}
 Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}
 Bonus on ${modifierTileId}: ${modifierDesc}`;
+
+  // Add failed attempts context so the model doesn't repeat mistakes
+  if (failedAttempts.length > 0) {
+    userPrompt += '\n\nPrevious failed attempts:';
+    for (const attempt of failedAttempts) {
+      userPrompt += `\n- {"word":"${attempt.word}","tiles":${JSON.stringify(attempt.tiles)}} failed: ${attempt.reason}`;
+    }
+  }
 
   // Choose model and parameters based on bot difficulty
   const isEasy = botPlayer.botDifficulty === 'easy';
@@ -1221,12 +1229,13 @@ function scheduleBotSubmission(lobby, botPlayer) {
     }
 
     let attempts = 0;
-    const maxAttempts = botPlayer.botRetries || 3;
+    const maxAttempts = botPlayer.botRetries || 5;
+    const failedAttempts = []; // Track failed attempts for feedback
 
     while (attempts < maxAttempts) {
       attempts++;
 
-      const result = await generateBotWord(lobby, botPlayer);
+      const result = await generateBotWord(lobby, botPlayer, failedAttempts);
       if (!result) {
         console.log(`[AI] ${botPlayer.name} attempt ${attempts}: LLM returned no parseable result`);
         continue;
@@ -1241,6 +1250,8 @@ function scheduleBotSubmission(lobby, botPlayer) {
         return;
       }
 
+      // Record the failed attempt for feedback to the next LLM call
+      failedAttempts.push({ word: result.word, tiles: result.tileIds, reason: validation.reason });
       console.log(`[AI] ${botPlayer.name} attempt ${attempts} failed: ${validation.reason}`);
     }
 
