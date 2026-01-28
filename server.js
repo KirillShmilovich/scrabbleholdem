@@ -977,7 +977,7 @@ Bonus on ${modifierTileId}: ${modifierDesc}`;
   // Choose model and parameters based on bot difficulty
   const isEasy = botPlayer.botDifficulty === 'easy';
   const geminiOptions = isEasy
-    ? { model: 'gemini-2.5-flash', thinkingBudget: 4096, timeout: 60000 }
+    ? { model: 'gemini-2.5-flash', thinkingBudget: -1, timeout: 60000 }  // Dynamic thinking
     : { model: 'gemini-3-flash-preview', thinkingLevel: 'low', timeout: 60000 };
 
   console.log(`[AI] ${botPlayer.name} using ${isEasy ? 'easy' : 'hard'} mode (${geminiOptions.model})`);
