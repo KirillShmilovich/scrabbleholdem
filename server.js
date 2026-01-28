@@ -1229,7 +1229,7 @@ function scheduleBotSubmission(lobby, botPlayer) {
     }
 
     let attempts = 0;
-    const maxAttempts = botPlayer.botRetries || 5;
+    const maxAttempts = botPlayer.botRetries || 10;
     const failedAttempts = []; // Track failed attempts for feedback
 
     while (attempts < maxAttempts) {
@@ -1550,7 +1550,7 @@ io.on('connection', (socket) => {
       isHost: false,
       isBot: true,
       botDifficulty: difficulty,
-      botRetries: data.retries || 5,
+      botRetries: data.retries || 10,
     });
 
     console.log(`[AI] Added AI player ${botId} (${difficulty}) to lobby ${lobby.code}`);
