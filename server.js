@@ -960,7 +960,7 @@ async function generateBotWord(lobby, botPlayer, failedAttempts = []) {
 
 Scoring: 1pt=A,E,I,O,U,L,N,R,S,T | 2pt=B,C,D,G,H,M,P | 3pt=F,K,V,W,Y | 4pt=J,X,Z,Qu
 
-Goal: maximize points while ensuring validity. The word you choose will be validated against the English Scrabble dictionary. Pick a good word quickly - consider a few options then decide. Don't overthink.
+Goal: ensure validity while maximizing points. The word must exist in the English Scrabble dictionary. When uncertain, prefer common words over obscure ones. Pick a good word quickly - consider a few options then decide.
 
 Respond with JSON only: {"word":"YOURWORD","tiles":["tile-id-1","tile-id-2",...]}
 
