@@ -978,7 +978,7 @@ Bonus on ${modifierTileId}: ${modifierDesc}`;
   // Choose model and parameters based on bot difficulty
   const isEasy = botPlayer.botDifficulty === 'easy';
   const geminiOptions = isEasy
-    ? { model: 'gemini-2.5-flash', thinkingBudget: 4096, timeout: 60000 }
+    ? { model: 'gemini-2.5-flash', thinkingBudget: 2048, timeout: 60000 }
     : { model: 'gemini-3-flash-preview', thinkingLevel: 'low', timeout: 60000 };
 
   console.log(`[AI] ${botPlayer.name} using ${isEasy ? 'easy' : 'hard'} mode (${geminiOptions.model})`);
@@ -1517,19 +1517,20 @@ io.on('connection', (socket) => {
 
     const botId = 'bot_' + Math.random().toString(36).substr(2, 6);
 
+    // Validate difficulty (default to 'hard' for backwards compatibility)
+    const difficulty = ['easy', 'hard'].includes(data.difficulty) ? data.difficulty : 'hard';
+    const difficultyEmoji = difficulty === 'easy' ? '🌱' : '🔥';
+
     // Pick a random unused bot name
     const usedNames = new Set(
       Array.from(lobby.players.values())
         .filter(p => p.isBot)
         .map(p => p.name)
     );
-    const availableNames = BOT_NAMES.filter(n => !usedNames.has(`🤖 ${n}`));
+    const availableNames = BOT_NAMES.filter(n => !usedNames.has(`🤖 ${n} ${difficultyEmoji}`));
     const botName = availableNames.length > 0
-      ? `🤖 ${availableNames[Math.floor(Math.random() * availableNames.length)]}`
-      : `🤖 Bot ${usedNames.size + 1}`;
-
-    // Validate difficulty (default to 'hard' for backwards compatibility)
-    const difficulty = ['easy', 'hard'].includes(data.difficulty) ? data.difficulty : 'hard';
+      ? `🤖 ${availableNames[Math.floor(Math.random() * availableNames.length)]} ${difficultyEmoji}`
+      : `🤖 Bot ${usedNames.size + 1} ${difficultyEmoji}`;
 
     lobby.players.set(botId, {
       visibleId: botId,
