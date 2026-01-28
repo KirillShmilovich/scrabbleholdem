@@ -658,9 +658,10 @@ function getPlayerState(lobby, visibleId) {
       isConnected,
       isReconnecting,
       isBot,
+      botDifficulty: p.botDifficulty || null,
     };
   });
-  
+
   return {
     lobbyCode: lobby.code,
     status: lobby.status,
@@ -974,13 +975,18 @@ Example: {"word":"PLANT","tiles":["player-1","community-0","community-2","player
 Player: ${playerLetters.map((d, i) => `player-${i}="${d.letter}"`).join(', ')}
 Bonus on ${modifierTileId}: ${modifierDesc}`;
 
+  // Choose model and parameters based on bot difficulty
+  const isEasy = botPlayer.botDifficulty === 'easy';
+  const geminiOptions = isEasy
+    ? { model: 'gemini-2.5-flash', thinkingBudget: 0, timeout: 60000 }
+    : { model: 'gemini-3-flash-preview', thinkingLevel: 'low', timeout: 60000 };
+
+  console.log(`[AI] ${botPlayer.name} using ${isEasy ? 'easy' : 'hard'} mode (${geminiOptions.model})`);
+
   const result = await callGemini([
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt }
-  ], {
-    thinkingLevel: 'low',
-    timeout: 60000,
-  });
+  ], geminiOptions);
 
   if (result.error) {
     console.error(`[AI] ${botPlayer.name} LLM error:`, result.error);
@@ -1522,6 +1528,9 @@ io.on('connection', (socket) => {
       ? `🤖 ${availableNames[Math.floor(Math.random() * availableNames.length)]}`
       : `🤖 Bot ${usedNames.size + 1}`;
 
+    // Validate difficulty (default to 'hard' for backwards compatibility)
+    const difficulty = ['easy', 'hard'].includes(data.difficulty) ? data.difficulty : 'hard';
+
     lobby.players.set(botId, {
       visibleId: botId,
       name: data.name || botName,
@@ -1529,10 +1538,11 @@ io.on('connection', (socket) => {
       totalPoints: 0,
       isHost: false,
       isBot: true,
+      botDifficulty: difficulty,
       botRetries: data.retries || 3,
     });
 
-    console.log(`[AI] Added AI player ${botId} to lobby ${lobby.code}`);
+    console.log(`[AI] Added AI player ${botId} (${difficulty}) to lobby ${lobby.code}`);
     broadcastPlayerList(lobby);
   });
 
@@ -1898,6 +1908,7 @@ function broadcastPlayerList(lobby) {
       isConnected,
       isReconnecting, // True for first 30 seconds after disconnect
       isBot,
+      botDifficulty: p.botDifficulty || null,
     };
   });
   
