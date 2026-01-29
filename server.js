@@ -960,7 +960,7 @@ async function generateBotWord(lobby, botPlayer, failedAttempts = []) {
 
 Scoring: 1pt=A,E,I,O,U,L,N,R,S,T | 2pt=B,C,D,G,H,M,P | 3pt=F,K,V,W,Y | 4pt=J,X,Z,Qu
 
-Goal: ensure validity while maximizing points. The word must exist in the English Scrabble dictionary. When uncertain, prefer common words over obscure ones. Pick a good word quickly - consider a few options then decide.
+Goal: ensure validity while maximizing points. The word must exist in the English Scrabble dictionary. When uncertain, prefer common words over obscure words. Pick a good word quickly - consider a few options then decide.
 
 Respond with JSON only: {"word":"YOURWORD","tiles":["tile-id-1","tile-id-2",...]}
 
@@ -985,8 +985,8 @@ Bonus on ${modifierTileId}: ${modifierDesc}`;
   // Choose model and parameters based on bot difficulty
   const isEasy = botPlayer.botDifficulty === 'easy';
   const geminiOptions = isEasy
-    ? { model: 'gemini-3-flash-preview', thinkingLevel: 'minimal', timeout: 60000 }
-    : { model: 'gemini-3-flash-preview', thinkingLevel: 'low', timeout: 60000 };
+    ? { model: 'gemini-3-flash-preview', thinkingLevel: 'low', timeout: 60000 }
+    : { model: 'gemini-3-flash-preview', thinkingLevel: 'medium', timeout: 60000 };
 
   console.log(`[AI] ${botPlayer.name} using ${isEasy ? 'easy' : 'hard'} mode (${geminiOptions.model})`);
 
