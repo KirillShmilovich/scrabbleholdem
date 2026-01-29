@@ -633,61 +633,32 @@ function stopTimer(lobby) {
   }
 }
 
-// Detect circular references in an object
-function hasCircularReference(obj, seen = new WeakSet()) {
-  if (obj === null || typeof obj !== 'object') return false;
-  if (seen.has(obj)) return true;
-  seen.add(obj);
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      if (hasCircularReference(obj[key], seen)) return true;
+// Pre-check emit data for serialization issues - logs diagnostics and re-throws on error
+function checkEmitData(event, data) {
+  try {
+    JSON.stringify(data);
+  } catch (err) {
+    console.error(`\n========== SERIALIZATION ERROR ==========`);
+    console.error(`Event: ${event}`);
+    console.error(`Error: ${err.message}`);
+    console.error(`Data keys: ${Object.keys(data || {}).join(', ')}`);
+    for (const key in data) {
+      try {
+        JSON.stringify(data[key]);
+      } catch (keyErr) {
+        console.error(`  -> Problem in key "${key}": ${keyErr.message}`);
+      }
     }
+    console.error(`==========================================\n`);
+    throw err;
   }
-  return false;
-}
-
-// Check if object has non-serializable properties (like Timeout objects)
-function hasNonSerializableProps(obj, path = '') {
-  if (obj === null || typeof obj !== 'object') return null;
-  // Check for Timeout objects (have _idleTimeout property)
-  if (obj._idleTimeout !== undefined) {
-    return `${path} is a Timeout object`;
-  }
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const result = hasNonSerializableProps(obj[key], `${path}.${key}`);
-      if (result) return result;
-    }
-  }
-  return null;
 }
 
 // Broadcast to all players in a lobby
 function broadcastToLobby(lobby, event, data) {
-  // Debug: check for circular references before emitting
-  if (hasCircularReference(data)) {
-    console.error(`[CIRCULAR REF DETECTED] Event: ${event}, Data keys:`, Object.keys(data));
-    // Log which properties might have circular refs
-    for (const key in data) {
-      if (hasCircularReference(data[key])) {
-        console.error(`  - Circular ref in key: ${key}`);
-      }
-    }
-  }
-
-  // Check for non-serializable properties like Timeout objects
-  const nonSerializable = hasNonSerializableProps(data);
-  if (nonSerializable) {
-    console.error(`[NON-SERIALIZABLE] Event: ${event}, Found: ${nonSerializable}`);
-  }
-
-  lobby.playerSockets.forEach((socketId, visibleId) => {
-    try {
-      io.to(socketId).emit(event, data);
-    } catch (err) {
-      console.error(`[EMIT ERROR] Event: ${event}, Socket: ${socketId}, Error:`, err.message);
-      console.error(`  Data keys:`, Object.keys(data || {}));
-    }
+  checkEmitData(event, data);
+  lobby.playerSockets.forEach((socketId) => {
+    io.to(socketId).emit(event, data);
   });
 }
 
@@ -1433,14 +1404,8 @@ io.on('connection', (socket) => {
       visibleId: hostId,
       state: getPlayerState(lobby, hostId),
     };
-    if (hasCircularReference(createdData)) {
-      console.error(`[CIRCULAR REF] lobby:created for ${hostId}, keys:`, Object.keys(createdData));
-    }
-    try {
-      socket.emit('lobby:created', createdData);
-    } catch (err) {
-      console.error(`[EMIT ERROR] lobby:created for ${hostId}:`, err.message);
-    }
+    checkEmitData('lobby:created', createdData);
+    socket.emit('lobby:created', createdData);
   });
   
   // Join an existing lobby
@@ -1538,19 +1503,8 @@ io.on('connection', (socket) => {
         };
       }
 
-      if (hasCircularReference(rejoinData)) {
-        console.error(`[CIRCULAR REF] lobby:rejoined for ${visibleId}, keys:`, Object.keys(rejoinData));
-        for (const key in rejoinData) {
-          if (hasCircularReference(rejoinData[key])) {
-            console.error(`  - Circular ref in key: ${key}`);
-          }
-        }
-      }
-      try {
-        socket.emit('lobby:rejoined', rejoinData);
-      } catch (err) {
-        console.error(`[EMIT ERROR] lobby:rejoined for ${visibleId}:`, err.message);
-      }
+      checkEmitData('lobby:rejoined', rejoinData);
+      socket.emit('lobby:rejoined', rejoinData);
     } else {
       // Normal lobby join
       const joinData = {
@@ -1558,14 +1512,8 @@ io.on('connection', (socket) => {
         visibleId,
         state: getPlayerState(lobby, visibleId),
       };
-      if (hasCircularReference(joinData)) {
-        console.error(`[CIRCULAR REF] lobby:joined for ${visibleId}, keys:`, Object.keys(joinData));
-      }
-      try {
-        socket.emit('lobby:joined', joinData);
-      } catch (err) {
-        console.error(`[EMIT ERROR] lobby:joined for ${visibleId}:`, err.message);
-      }
+      checkEmitData('lobby:joined', joinData);
+      socket.emit('lobby:joined', joinData);
     }
     
     // Notify all players of updated player list
@@ -1693,32 +1641,17 @@ io.on('connection', (socket) => {
       startNewRound(lobby);
 
       // Send individual state to each player
-      lobby.players.forEach((p, visibleId) => {
+      lobby.players.forEach((_, visibleId) => {
         const socketId = lobby.playerSockets.get(visibleId);
         if (socketId) {
           const state = getPlayerState(lobby, visibleId);
-          if (hasCircularReference(state)) {
-            console.error(`[CIRCULAR REF] game:newRound for ${visibleId}, state keys:`, Object.keys(state));
-            for (const key in state) {
-              if (hasCircularReference(state[key])) {
-                console.error(`  - Circular ref in key: ${key}`);
-              }
-            }
-          }
-          const nonSerializable = hasNonSerializableProps(state);
-          if (nonSerializable) {
-            console.error(`[NON-SERIALIZABLE] game:newRound for ${visibleId}: ${nonSerializable}`);
-          }
-          try {
-            io.to(socketId).emit('game:newRound', state);
-          } catch (err) {
-            console.error(`[EMIT ERROR] game:newRound for ${visibleId}:`, err.message);
-          }
+          checkEmitData('game:newRound', state);
+          io.to(socketId).emit('game:newRound', state);
         }
       });
     }, 3500);
   });
-  
+
   // Start new round (host only, after results shown)
   socket.on('game:nextRound', () => {
     const lobby = lobbies.get(socket.lobbyCode);
@@ -1734,18 +1667,12 @@ io.on('connection', (socket) => {
     startNewRound(lobby);
 
     // Send individual state to each player
-    lobby.players.forEach((p, visibleId) => {
+    lobby.players.forEach((_, visibleId) => {
       const socketId = lobby.playerSockets.get(visibleId);
       if (socketId) {
         const state = getPlayerState(lobby, visibleId);
-        if (hasCircularReference(state)) {
-          console.error(`[CIRCULAR REF] game:newRound for ${visibleId}, state keys:`, Object.keys(state));
-        }
-        try {
-          io.to(socketId).emit('game:newRound', state);
-        } catch (err) {
-          console.error(`[EMIT ERROR] game:newRound for ${visibleId}:`, err.message);
-        }
+        checkEmitData('game:newRound', state);
+        io.to(socketId).emit('game:newRound', state);
       }
     });
 
