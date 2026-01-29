@@ -633,10 +633,61 @@ function stopTimer(lobby) {
   }
 }
 
+// Detect circular references in an object
+function hasCircularReference(obj, seen = new WeakSet()) {
+  if (obj === null || typeof obj !== 'object') return false;
+  if (seen.has(obj)) return true;
+  seen.add(obj);
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      if (hasCircularReference(obj[key], seen)) return true;
+    }
+  }
+  return false;
+}
+
+// Check if object has non-serializable properties (like Timeout objects)
+function hasNonSerializableProps(obj, path = '') {
+  if (obj === null || typeof obj !== 'object') return null;
+  // Check for Timeout objects (have _idleTimeout property)
+  if (obj._idleTimeout !== undefined) {
+    return `${path} is a Timeout object`;
+  }
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const result = hasNonSerializableProps(obj[key], `${path}.${key}`);
+      if (result) return result;
+    }
+  }
+  return null;
+}
+
 // Broadcast to all players in a lobby
 function broadcastToLobby(lobby, event, data) {
+  // Debug: check for circular references before emitting
+  if (hasCircularReference(data)) {
+    console.error(`[CIRCULAR REF DETECTED] Event: ${event}, Data keys:`, Object.keys(data));
+    // Log which properties might have circular refs
+    for (const key in data) {
+      if (hasCircularReference(data[key])) {
+        console.error(`  - Circular ref in key: ${key}`);
+      }
+    }
+  }
+
+  // Check for non-serializable properties like Timeout objects
+  const nonSerializable = hasNonSerializableProps(data);
+  if (nonSerializable) {
+    console.error(`[NON-SERIALIZABLE] Event: ${event}, Found: ${nonSerializable}`);
+  }
+
   lobby.playerSockets.forEach((socketId, visibleId) => {
-    io.to(socketId).emit(event, data);
+    try {
+      io.to(socketId).emit(event, data);
+    } catch (err) {
+      console.error(`[EMIT ERROR] Event: ${event}, Socket: ${socketId}, Error:`, err.message);
+      console.error(`  Data keys:`, Object.keys(data || {}));
+    }
   });
 }
 
@@ -960,7 +1011,7 @@ async function generateBotWord(lobby, botPlayer, failedAttempts = []) {
 
 Scoring: 1pt=A,E,I,O,U,L,N,R,S,T | 2pt=B,C,D,G,H,M,P | 3pt=F,K,V,W,Y | 4pt=J,X,Z,Qu
 
-Goal: ensure validity while maximizing points. The word must exist in the English Scrabble dictionary. When uncertain, prefer common words over obscure words. Pick a good word quickly - consider a few options then decide.
+Goal: ensure validity while maximizing points. The word must exist in the English Scrabble dictionary. Pick a good word quickly - consider a few options then decide.
 
 Respond with JSON only: {"word":"YOURWORD","tiles":["tile-id-1","tile-id-2",...]}
 
@@ -1376,12 +1427,20 @@ io.on('connection', (socket) => {
     resetDeck(lobby);
     
     console.log(`Lobby ${lobby.code} created by ${name} (${hostId})`);
-    
-    socket.emit('lobby:created', {
+
+    const createdData = {
       lobbyCode: lobby.code,
       visibleId: hostId,
       state: getPlayerState(lobby, hostId),
-    });
+    };
+    if (hasCircularReference(createdData)) {
+      console.error(`[CIRCULAR REF] lobby:created for ${hostId}, keys:`, Object.keys(createdData));
+    }
+    try {
+      socket.emit('lobby:created', createdData);
+    } catch (err) {
+      console.error(`[EMIT ERROR] lobby:created for ${hostId}:`, err.message);
+    }
   });
   
   // Join an existing lobby
@@ -1479,14 +1538,34 @@ io.on('connection', (socket) => {
         };
       }
 
-      socket.emit('lobby:rejoined', rejoinData);
+      if (hasCircularReference(rejoinData)) {
+        console.error(`[CIRCULAR REF] lobby:rejoined for ${visibleId}, keys:`, Object.keys(rejoinData));
+        for (const key in rejoinData) {
+          if (hasCircularReference(rejoinData[key])) {
+            console.error(`  - Circular ref in key: ${key}`);
+          }
+        }
+      }
+      try {
+        socket.emit('lobby:rejoined', rejoinData);
+      } catch (err) {
+        console.error(`[EMIT ERROR] lobby:rejoined for ${visibleId}:`, err.message);
+      }
     } else {
       // Normal lobby join
-      socket.emit('lobby:joined', {
+      const joinData = {
         lobbyCode: lobby.code,
         visibleId,
         state: getPlayerState(lobby, visibleId),
-      });
+      };
+      if (hasCircularReference(joinData)) {
+        console.error(`[CIRCULAR REF] lobby:joined for ${visibleId}, keys:`, Object.keys(joinData));
+      }
+      try {
+        socket.emit('lobby:joined', joinData);
+      } catch (err) {
+        console.error(`[EMIT ERROR] lobby:joined for ${visibleId}:`, err.message);
+      }
     }
     
     // Notify all players of updated player list
@@ -1617,7 +1696,24 @@ io.on('connection', (socket) => {
       lobby.players.forEach((p, visibleId) => {
         const socketId = lobby.playerSockets.get(visibleId);
         if (socketId) {
-          io.to(socketId).emit('game:newRound', getPlayerState(lobby, visibleId));
+          const state = getPlayerState(lobby, visibleId);
+          if (hasCircularReference(state)) {
+            console.error(`[CIRCULAR REF] game:newRound for ${visibleId}, state keys:`, Object.keys(state));
+            for (const key in state) {
+              if (hasCircularReference(state[key])) {
+                console.error(`  - Circular ref in key: ${key}`);
+              }
+            }
+          }
+          const nonSerializable = hasNonSerializableProps(state);
+          if (nonSerializable) {
+            console.error(`[NON-SERIALIZABLE] game:newRound for ${visibleId}: ${nonSerializable}`);
+          }
+          try {
+            io.to(socketId).emit('game:newRound', state);
+          } catch (err) {
+            console.error(`[EMIT ERROR] game:newRound for ${visibleId}:`, err.message);
+          }
         }
       });
     }, 3500);
@@ -1636,15 +1732,23 @@ io.on('connection', (socket) => {
     if (lobby.roundNumber >= lobby.settings.totalRounds) return; // Game over
     
     startNewRound(lobby);
-    
+
     // Send individual state to each player
     lobby.players.forEach((p, visibleId) => {
       const socketId = lobby.playerSockets.get(visibleId);
       if (socketId) {
-        io.to(socketId).emit('game:newRound', getPlayerState(lobby, visibleId));
+        const state = getPlayerState(lobby, visibleId);
+        if (hasCircularReference(state)) {
+          console.error(`[CIRCULAR REF] game:newRound for ${visibleId}, state keys:`, Object.keys(state));
+        }
+        try {
+          io.to(socketId).emit('game:newRound', state);
+        } catch (err) {
+          console.error(`[EMIT ERROR] game:newRound for ${visibleId}:`, err.message);
+        }
       }
     });
-    
+
     console.log(`Round ${lobby.roundNumber} started in lobby ${lobby.code}`);
   });
   
