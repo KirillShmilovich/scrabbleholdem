@@ -409,17 +409,17 @@ const MODIFIERS = [
   { name: 'Second Letter', shortName: '2nd', multiplier: 2, type: 'position', position: 'second', color: '#f59e0b', desc: '×2 if used as the 2nd letter of your word' },
   { name: 'Penultimate', shortName: '-2', multiplier: 2, type: 'position', position: 'penultimate', color: '#d97706', desc: '×2 if used as second-to-last letter' },
   { name: 'Centerpiece', shortName: 'CTR', multiplier: 3, type: 'position', position: 'center', color: '#eab308', desc: '×3 if exact middle of an odd-length word' },
-  { name: 'Long Word', shortName: '6+', multiplier: 1, type: 'length', minLength: 6, bonus: 12, color: '#10b981', desc: '+12 bonus if your word is 6+ letters' },
+  { name: 'Long Word', shortName: '6+', multiplier: 1, type: 'length', minLength: 6, bonus: 7, color: '#10b981', desc: '+7 bonus if your word is 6+ letters' },
   { name: 'Short & Sweet', shortName: '4', multiplier: 3, type: 'length', exactLength: 4, color: '#14b8a6', desc: '×3 if your word is exactly 4 letters' },
-  { name: 'Five Alive', shortName: '5', multiplier: 2, type: 'length', exactLength: 5, bonus: 5, color: '#0d9488', desc: '×2 + 5 bonus if your word is exactly 5 letters' },
-  { name: 'Compact', shortName: '3', multiplier: 1, type: 'length', exactLength: 3, bonus: 10, color: '#059669', desc: '+10 bonus if your word is exactly 3 letters' },
-  { name: 'Odd Word', shortName: 'ODD', multiplier: 1, type: 'parity', parity: 'odd', bonus: 8, color: '#8b5cf6', desc: '+8 bonus if word has ODD number of letters' },
-  { name: 'Even Word', shortName: 'EVEN', multiplier: 1, type: 'parity', parity: 'even', bonus: 8, color: '#a855f7', desc: '+8 bonus if word has EVEN number of letters' },
+  { name: 'Five Alive', shortName: '5', multiplier: 2, type: 'length', exactLength: 5, bonus: 3, color: '#0d9488', desc: '×2 + 3 bonus if your word is exactly 5 letters' },
+  { name: 'Compact', shortName: '3', multiplier: 1, type: 'length', exactLength: 3, bonus: 5, color: '#059669', desc: '+5 bonus if your word is exactly 3 letters' },
+  { name: 'Odd Word', shortName: 'ODD', multiplier: 1, type: 'parity', parity: 'odd', bonus: 4, color: '#8b5cf6', desc: '+4 bonus if word has ODD number of letters' },
+  { name: 'Even Word', shortName: 'EVEN', multiplier: 1, type: 'parity', parity: 'even', bonus: 4, color: '#a855f7', desc: '+4 bonus if word has EVEN number of letters' },
   { name: 'Vowel Buddy', shortName: 'V+', multiplier: 2, type: 'neighbor', neighborType: 'vowel', color: '#06b6d4', desc: '×2 if this letter is next to a VOWEL' },
-  { name: 'Balanced', shortName: 'BAL', multiplier: 1, type: 'composition', compositionType: 'balanced', bonus: 6, color: '#0ea5e9', desc: '+6 if word has equal vowels and consonants' },
-  { name: 'Vowel Rich', shortName: 'V>C', multiplier: 1, type: 'composition', compositionType: 'vowelRich', bonus: 10, color: '#6366f1', desc: '+10 if word has more vowels than consonants' },
-  { name: 'Bonus +5', shortName: '+5', multiplier: 1, type: 'bonus', bonus: 5, color: '#22c55e', desc: '+5 points if you use this letter' },
-  { name: 'Bonus +10', shortName: '+10', multiplier: 1, type: 'bonus', bonus: 10, color: '#16a34a', desc: '+10 points if you use this letter' },
+  { name: 'Balanced', shortName: 'BAL', multiplier: 1, type: 'composition', compositionType: 'balanced', bonus: 4, color: '#0ea5e9', desc: '+4 if word has equal vowels and consonants' },
+  { name: 'Vowel Rich', shortName: 'V>C', multiplier: 1, type: 'composition', compositionType: 'vowelRich', bonus: 6, color: '#6366f1', desc: '+6 if word has more vowels than consonants' },
+  { name: 'Bonus +3', shortName: '+3', multiplier: 1, type: 'bonus', bonus: 3, color: '#22c55e', desc: '+3 points if you use this letter' },
+  { name: 'Bonus +4', shortName: '+4', multiplier: 1, type: 'bonus', bonus: 4, color: '#16a34a', desc: '+4 points if you use this letter' },
 ];
 
 // Placement points are based on total players in the lobby (N -> 1).
@@ -476,6 +476,7 @@ function createLobby(hostSocketId, hostName) {
     letterDeck: [],
     deckIndex: 0,
     playerSubmissions: new Map(), // visibleId -> submission
+    playerBestWords: new Map(), // visibleId -> best word data
     timerRemaining: 0,
     timerInterval: null,
     timerHalved: false, // Has first submission halved the timer this round?
@@ -574,6 +575,7 @@ function startNewRound(lobby) {
   lobby.communityDice = rollCommunityDice(lobby);
   lobby.modifier = rollModifier();
   lobby.playerSubmissions.clear();
+  lobby.playerBestWords.clear();
   lobby.revealed = false;
   lobby.currentFunFact = null;
   lobby.currentFunFactImage = null;
@@ -781,6 +783,22 @@ function calculatePlacements(lobby) {
   return results.concat(invalidResults);
 }
 
+function buildBestWordPayload(lobby, visibleId, submittedScore = 0) {
+  const best = lobby.playerBestWords.get(visibleId);
+  if (!best || !best.word || typeof best.score !== 'number' || best.score <= 0) {
+    return { bestWord: null, bestScore: null, bestPercent: null };
+  }
+
+  const rawPercent = best.score > 0 ? (submittedScore / best.score) * 100 : 0;
+  const bestPercent = Math.max(0, Math.min(100, Math.round(rawPercent)));
+
+  return {
+    bestWord: best.word,
+    bestScore: best.score,
+    bestPercent,
+  };
+}
+
 // Generate fun fact for a set of words (used by revealResults)
 async function generateFunFact(words) {
   if (words.length === 0) return null;
@@ -850,6 +868,13 @@ function revealResults(lobby) {
   lobby.revealed = true;
   
   const results = calculatePlacements(lobby);
+  const resultsWithBest = results.map(r => {
+    const submittedScore = typeof r.score === 'number' ? r.score : 0;
+    return {
+      ...r,
+      ...buildBestWordPayload(lobby, r.visibleId, submittedScore),
+    };
+  });
   
   // Get updated standings
   const standings = Array.from(lobby.players.values())
@@ -873,7 +898,7 @@ function revealResults(lobby) {
   // Store round in history with full details
   lobby.roundHistory.push({
     roundNumber: lobby.roundNumber,
-    results: results.map(r => {
+    results: resultsWithBest.map(r => {
       // Get player's dice letters from their submission
       const submission = lobby.playerSubmissions.get(r.visibleId);
       const player = lobby.players.get(r.visibleId);
@@ -889,6 +914,9 @@ function revealResults(lobby) {
         isInvalid: r.isInvalid,
         noSubmission: r.noSubmission,
         playerLetters, // Include the player's dice letters
+        bestWord: r.bestWord || null,
+        bestScore: typeof r.bestScore === 'number' ? r.bestScore : null,
+        bestPercent: typeof r.bestPercent === 'number' ? r.bestPercent : null,
       };
     }),
     standings: standingsSnapshot, // Running totals after this round
@@ -908,10 +936,17 @@ function revealResults(lobby) {
   broadcastToLobby(lobby, 'game:roundResults', {
     roundNumber: lobby.roundNumber,
     totalRounds: lobby.settings.totalRounds,
-    results,
+    results: resultsWithBest,
     standings,
     isLastRound,
     funFact: null, // Will be sent separately
+  });
+
+  // Compute optimal words for bots server-side (async)
+  lobby.players.forEach((player) => {
+    if (player.isBot) {
+      scheduleBestWordForBot(lobby, player);
+    }
   });
   
   // Log detailed results including validity
@@ -1066,6 +1101,237 @@ Bonus on ${modifierTileId}: ${modifierDesc}`;
   const tileIds = parsed.tiles.map(t => t.trim());
 
   return { word, tileIds };
+}
+
+function computeScoreFromSequence(sequence, modifier) {
+  if (!modifier || sequence.length === 0) return 0;
+
+  const modifierTileIndex = sequence.findIndex(tile => tile.source === 'community' && tile.index === modifier.dieIndex);
+  const modifierSelected = modifierTileIndex >= 0;
+
+  const letterCount = sequence.reduce((sum, tile) => sum + tile.letterLength, 0);
+  const modifierLetterPos = modifierTileIndex >= 0
+    ? sequence.slice(0, modifierTileIndex).reduce((sum, tile) => sum + tile.letterLength, 0)
+    : -1;
+
+  const tileContainsLetterPos = (targetPos) => {
+    if (modifierTileIndex < 0) return false;
+    const tileLen = sequence[modifierTileIndex].letterLength;
+    return targetPos >= modifierLetterPos && targetPos < modifierLetterPos + tileLen;
+  };
+
+  let modifierApplies = false;
+  let modifierMultiplier = 1;
+  let modifierBonusPoints = 0;
+
+  if (modifierSelected) {
+    const modTileLen = sequence[modifierTileIndex].letterLength;
+
+    switch (modifier.type) {
+      case 'multiply':
+        modifierApplies = true;
+        modifierMultiplier = modifier.multiplier;
+        break;
+
+      case 'position':
+        if (modifier.position === 'start' && modifierLetterPos === 0) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'end' && modifierLetterPos + modTileLen === letterCount) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'middle' && modifierLetterPos > 0 && modifierLetterPos + modTileLen < letterCount) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'second' && tileContainsLetterPos(1)) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'penultimate' && tileContainsLetterPos(letterCount - 2) && letterCount >= 2) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'center' && letterCount % 2 === 1 && tileContainsLetterPos(Math.floor(letterCount / 2))) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        }
+        break;
+
+      case 'length':
+        if (modifier.minLength && letterCount >= modifier.minLength) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus || 0;
+          modifierMultiplier = modifier.multiplier || 1;
+        } else if (modifier.exactLength && letterCount === modifier.exactLength) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus || 0;
+          modifierMultiplier = modifier.multiplier || 1;
+        }
+        break;
+
+      case 'parity': {
+        const isOdd = letterCount % 2 === 1;
+        if ((modifier.parity === 'odd' && isOdd) || (modifier.parity === 'even' && !isOdd)) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        }
+        break;
+      }
+
+      case 'neighbor': {
+        const prevTile = modifierTileIndex > 0 ? sequence[modifierTileIndex - 1] : null;
+        const nextTile = modifierTileIndex < sequence.length - 1 ? sequence[modifierTileIndex + 1] : null;
+        const vowels = 'AEIOUaeiou';
+        const prevEndsWithVowel = prevTile && vowels.includes(prevTile.letterUpper.slice(-1));
+        const nextStartsWithVowel = nextTile && vowels.includes(nextTile.letterUpper[0]);
+        if (prevEndsWithVowel || nextStartsWithVowel) {
+          modifierApplies = true;
+          modifierMultiplier = modifier.multiplier;
+        }
+        break;
+      }
+
+      case 'composition': {
+        const wordString = sequence.map(tile => tile.letterUpper).join('');
+        const vowelCount = [...wordString].filter(c => 'AEIOUaeiou'.includes(c)).length;
+        const consonantCount = letterCount - vowelCount;
+        if (modifier.compositionType === 'balanced' && vowelCount === consonantCount) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        } else if (modifier.compositionType === 'vowelRich' && vowelCount > consonantCount) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        }
+        break;
+      }
+
+      case 'bonus':
+        modifierApplies = true;
+        modifierBonusPoints = modifier.bonus;
+        break;
+    }
+  }
+
+  let baseScore = 0;
+  sequence.forEach(tile => {
+    let points = tile.points;
+    const isModifierTile = modifierSelected && tile.source === 'community' && tile.index === modifier.dieIndex;
+    if (isModifierTile && modifierApplies && modifierMultiplier > 1) {
+      points *= modifierMultiplier;
+    }
+    baseScore += points;
+  });
+
+  return baseScore + modifierBonusPoints;
+}
+
+function computeBestWordForPlayer(lobby, player) {
+  const communityDice = lobby.communityDice || [];
+  const playerDice = player?.dice || [];
+  const modifier = lobby.modifier;
+
+  const tiles = [];
+  communityDice.forEach((die, index) => {
+    if (!die || !die.letter) return;
+    const letterUpper = String(die.letter).toUpperCase();
+    tiles.push({
+      die,
+      source: 'community',
+      index,
+      letterUpper,
+      letterLength: letterUpper.length,
+      points: Number(die.points) || 0,
+    });
+  });
+
+  playerDice.forEach((die, index) => {
+    if (!die || !die.letter) return;
+    const letterUpper = String(die.letter).toUpperCase();
+    tiles.push({
+      die,
+      source: 'player',
+      index,
+      letterUpper,
+      letterLength: letterUpper.length,
+      points: Number(die.points) || 0,
+    });
+  });
+
+  const used = new Array(tiles.length).fill(false);
+  const sequence = [];
+  let bestWord = null;
+  let bestScore = 0;
+  let bestLength = 0;
+
+  const dfs = (currentWord, usedPlayerTile) => {
+    for (let i = 0; i < tiles.length; i++) {
+      if (used[i]) continue;
+      const tile = tiles[i];
+
+      used[i] = true;
+      sequence.push(tile);
+
+      const nextWord = currentWord + tile.letterUpper;
+      const nextUsedPlayerTile = usedPlayerTile || tile.source === 'player';
+
+      if (nextUsedPlayerTile && nextWord.length >= 2 && dictionary.has(nextWord)) {
+        const score = computeScoreFromSequence(sequence, modifier);
+        if (
+          score > bestScore ||
+          (score === bestScore && nextWord.length > bestLength) ||
+          (score === bestScore && nextWord.length === bestLength && (!bestWord || nextWord < bestWord))
+        ) {
+          bestScore = score;
+          bestWord = nextWord;
+          bestLength = nextWord.length;
+        }
+      }
+
+      if (sequence.length < tiles.length) {
+        dfs(nextWord, nextUsedPlayerTile);
+      }
+
+      sequence.pop();
+      used[i] = false;
+    }
+  };
+
+  dfs('', false);
+
+  return { word: bestWord, score: bestScore };
+}
+
+function scheduleBestWordForBot(lobby, botPlayer) {
+  if (!botPlayer?.isBot) return;
+  if (lobby.playerBestWords.has(botPlayer.visibleId)) return;
+
+  setImmediate(() => {
+    try {
+      const result = computeBestWordForPlayer(lobby, botPlayer);
+      lobby.playerBestWords.set(botPlayer.visibleId, { word: result.word, score: result.score });
+
+      if (lobby.revealed) {
+        const submittedScore = lobby.playerSubmissions.get(botPlayer.visibleId)?.score || 0;
+        const bestPayload = buildBestWordPayload(lobby, botPlayer.visibleId, submittedScore);
+
+        const currentRound = lobby.roundHistory.find(r => r.roundNumber === lobby.roundNumber);
+        if (currentRound) {
+          const entry = currentRound.results.find(r => r.visibleId === botPlayer.visibleId);
+          if (entry) {
+            entry.bestWord = bestPayload.bestWord;
+            entry.bestScore = bestPayload.bestScore;
+            entry.bestPercent = bestPayload.bestPercent;
+          }
+        }
+
+        broadcastToLobby(lobby, 'game:bestWordUpdate', {
+          roundNumber: lobby.roundNumber,
+          visibleId: botPlayer.visibleId,
+          ...bestPayload,
+        });
+      }
+    } catch (err) {
+      console.error(`Best word computation failed for bot ${botPlayer?.name || botPlayer?.visibleId}:`, err);
+    }
+  });
 }
 
 // Validate bot's word and calculate score server-side
@@ -1755,6 +2021,49 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Player sends computed best-word data for the round (client-side)
+  socket.on('player:bestWord', (data) => {
+    const lobby = lobbies.get(socket.lobbyCode);
+    if (!lobby) return;
+
+    const visibleId = socket.visibleId;
+    if (!visibleId || !lobby.players.has(visibleId)) return;
+
+    const roundNumber = Number(data?.roundNumber);
+    if (!roundNumber || roundNumber !== lobby.roundNumber) return;
+
+    const word = typeof data?.word === 'string' ? data.word.toUpperCase() : '';
+    const score = typeof data?.score === 'number' ? data.score : 0;
+
+    if (!word || score <= 0) {
+      lobby.playerBestWords.set(visibleId, { word: null, score: 0 });
+    } else {
+      lobby.playerBestWords.set(visibleId, { word, score });
+    }
+
+    if (lobby.revealed) {
+      const submittedScore = lobby.playerSubmissions.get(visibleId)?.score || 0;
+      const bestPayload = buildBestWordPayload(lobby, visibleId, submittedScore);
+
+      // Update round history if it exists
+      const currentRound = lobby.roundHistory.find(r => r.roundNumber === lobby.roundNumber);
+      if (currentRound) {
+        const entry = currentRound.results.find(r => r.visibleId === visibleId);
+        if (entry) {
+          entry.bestWord = bestPayload.bestWord;
+          entry.bestScore = bestPayload.bestScore;
+          entry.bestPercent = bestPayload.bestPercent;
+        }
+      }
+
+      broadcastToLobby(lobby, 'game:bestWordUpdate', {
+        roundNumber: lobby.roundNumber,
+        visibleId,
+        ...bestPayload,
+      });
+    }
+  });
+
   // View final results (host only, after last round)
   socket.on('game:viewFinalResults', () => {
     const lobby = lobbies.get(socket.lobbyCode);
@@ -1810,6 +2119,7 @@ io.on('connection', (socket) => {
     lobby.communityDice = [];
     lobby.modifier = null;
     lobby.playerSubmissions.clear();
+    lobby.playerBestWords.clear();
     lobby.revealed = false;
     lobby.roundHistory = [];
     resetDeck(lobby);
@@ -1844,6 +2154,7 @@ io.on('connection', (socket) => {
     lobby.communityDice = [];
     lobby.modifier = null;
     lobby.playerSubmissions.clear();
+    lobby.playerBestWords.clear();
     lobby.revealed = false;
     lobby.roundHistory = [];
     resetDeck(lobby);

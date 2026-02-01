@@ -1108,7 +1108,7 @@
       opacity: 0.8;
       font-size: 0.85rem;
     }
-    
+
     /* Round Results - Compact Layout */
     .round-results {
       width: 100%;
@@ -1193,6 +1193,26 @@
     .result-item.place-1 .result-word-prominent {
       color: var(--gold);
       text-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+    }
+
+    .result-optimal {
+      margin-top: 3px;
+      font-size: 0.7rem;
+      color: var(--wood-light);
+      opacity: 0.85;
+      line-height: 1.4;
+    }
+
+    .result-optimal.pending {
+      opacity: 0.6;
+      font-style: italic;
+    }
+
+    .result-optimal-word {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cream);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .result-score {
@@ -1608,6 +1628,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
       padding: var(--space-xs) var(--space-sm);
       background: rgba(255, 255, 255, 0.03);
       border-radius: 8px;
@@ -1632,6 +1653,7 @@
       gap: var(--space-xs);
       flex: 1;
       min-width: 0;
+      flex-wrap: wrap;
     }
     
     .rh-place {
@@ -1681,6 +1703,25 @@
       border: 1px solid rgba(212, 175, 55, 0.3);
       border-radius: 6px;
       margin-left: auto;
+    }
+
+    .rh-optimal {
+      width: 100%;
+      margin-left: 22px;
+      margin-top: 2px;
+      font-size: 0.62rem;
+      color: var(--wood-light);
+      opacity: 0.85;
+      line-height: 1.25;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .rh-optimal-word {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cream);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
     
     .rh-scores {
@@ -2117,7 +2158,7 @@
       <p class="results-subtitle">Round <span id="resultsCurrentRound">1</span> of <span id="resultsTotalRounds">10</span></p>
       <button class="end-game-btn hidden" id="endGameBtnResults">✕ End Game</button>
     </div>
-    
+
     <div class="round-results" id="roundResults">
       <!-- Result items inserted here -->
     </div>
@@ -2203,6 +2244,10 @@
     let currentSubmission = null;
     let hasSubmitted = false;
     let currentFunFact = null; // Track current fun fact for image generation
+    let bestWordWorker = null;
+    let bestWordState = { roundNumber: null, status: 'idle' };
+    let currentRoundResults = null;
+    let currentGameOverData = null;
 
     // Client-side dictionary for instant word validation
     let dictionary = new Set();
@@ -2227,6 +2272,61 @@
 
     // Start loading dictionary immediately
     loadDictionary();
+
+    function initBestWordWorker() {
+      if (!window.Worker) {
+        console.warn('Web Workers not supported; best word computation disabled.');
+        return;
+      }
+
+      bestWordWorker = new Worker('/bestWordWorker.js');
+      bestWordWorker.onmessage = (event) => {
+        const data = event.data || {};
+        if (data.type === 'bestWordResult') {
+          if (!currentState || data.roundNumber !== currentState.roundNumber) return;
+
+          bestWordState = { roundNumber: data.roundNumber, status: 'done' };
+
+          if (socket && socket.connected) {
+            socket.emit('player:bestWord', {
+              roundNumber: data.roundNumber,
+              word: data.bestWord,
+              score: data.bestScore,
+            });
+          }
+        }
+
+        if (data.type === 'bestWordError') {
+          console.warn('Best word computation failed:', data.error);
+          bestWordState = { roundNumber: data.roundNumber, status: 'error' };
+        }
+      };
+
+      bestWordWorker.onerror = (err) => {
+        console.warn('Best word worker error:', err?.message || err);
+      };
+    }
+
+    function startBestWordComputation(state) {
+      if (!bestWordWorker || !state || state.revealed) return;
+
+      const roundNumber = state.roundNumber;
+      if (bestWordState.roundNumber === roundNumber && bestWordState.status === 'computing') return;
+
+      if (!state.communityDice || !state.player?.dice || !state.modifier) return;
+
+      bestWordState = { roundNumber, status: 'computing' };
+
+      bestWordWorker.postMessage({
+        type: 'computeBest',
+        roundNumber,
+        communityDice: state.communityDice,
+        playerDice: state.player.dice,
+        modifier: state.modifier,
+      });
+    }
+
+    initBestWordWorker();
     
     // ========================================
     // DOM ELEMENTS
@@ -2647,6 +2747,7 @@
       renderDice();
       calculateScore();
       updatePlayersStatus(state.players);
+      startBestWordComputation(state);
     }
     
     function renderDice() {
@@ -3064,6 +3165,93 @@
     // ========================================
     // RESULTS SCREEN
     // ========================================
+    function formatOptimalResult(r) {
+      if (typeof r.bestScore !== 'number') {
+        const isLocal = r.visibleId === session?.visibleId;
+        const isComputing = isLocal && bestWordState.status === 'computing' && bestWordState.roundNumber === currentRoundResults?.roundNumber;
+        const label = isComputing ? 'calculating...' : '—';
+        const pendingClass = isComputing ? ' pending' : '';
+        return `<div class="result-optimal${pendingClass}">Optimal: ${label}</div>`;
+      }
+
+      if (!r.bestWord || r.bestScore <= 0) {
+        return `<div class="result-optimal">Optimal: —</div>`;
+      }
+
+      const percentText = typeof r.bestPercent === 'number' ? `${r.bestPercent}%` : '—';
+      return `<div class="result-optimal">Optimal: ${percentText} — <span class="result-optimal-word">${r.bestWord}</span> (${r.bestScore} pts)</div>`;
+    }
+
+    function formatOptimalHistory(r) {
+      if (typeof r.bestScore !== 'number') {
+        return `<div class="rh-optimal">Optimal: —</div>`;
+      }
+
+      if (!r.bestWord || r.bestScore <= 0) {
+        return `<div class="rh-optimal">Optimal: —</div>`;
+      }
+
+      const percentText = typeof r.bestPercent === 'number' ? `${r.bestPercent}%` : '—';
+      return `<div class="rh-optimal">Optimal: ${percentText} — <span class="rh-optimal-word">${r.bestWord}</span> (${r.bestScore} pts)</div>`;
+    }
+
+    function renderRoundResults() {
+      if (!currentRoundResults) return;
+
+      elements.roundResults.innerHTML = currentRoundResults.results.map(r => {
+        const placeClass = r.place ? `place-${r.place}` : '';
+        const placeText = r.place || '—';
+        const pointsText = r.pointsEarned ? `+${r.pointsEarned} pts` : '';
+        const wordDisplay = r.noSubmission ? '(no submission)' : (r.isInvalid ? `${r.word} (invalid)` : r.word);
+        const optimalHtml = formatOptimalResult(r);
+
+        return `
+          <div class="result-item ${placeClass}">
+            <div class="result-place">${placeText}</div>
+            <div class="result-info">
+              <div class="result-name">${r.name}${r.visibleId === session?.visibleId ? ' (you)' : ''}</div>
+              <div class="result-word-prominent">${wordDisplay}</div>
+              ${optimalHtml}
+            </div>
+            <div class="result-score">
+              <div class="result-word-score">${r.score} pts</div>
+              <div class="result-points-earned">${pointsText}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function applyBestWordUpdate(data) {
+      if (!data) return;
+
+      if (currentRoundResults && data.roundNumber === currentRoundResults.roundNumber) {
+        const target = currentRoundResults.results.find(r => r.visibleId === data.visibleId);
+        if (target) {
+          target.bestWord = data.bestWord;
+          target.bestScore = data.bestScore;
+          target.bestPercent = data.bestPercent;
+          renderRoundResults();
+        }
+      }
+
+      if (currentGameOverData?.roundHistory) {
+        const round = currentGameOverData.roundHistory.find(r => r.roundNumber === data.roundNumber);
+        if (round) {
+          const entry = round.results.find(r => r.visibleId === data.visibleId);
+          if (entry) {
+            entry.bestWord = data.bestWord;
+            entry.bestScore = data.bestScore;
+            entry.bestPercent = data.bestPercent;
+          }
+
+          if (!screens.gameover.classList.contains('hidden')) {
+            renderRoundHistory(currentGameOverData.roundHistory);
+          }
+        }
+      }
+    }
+
     function showResults(data) {
       // Reset fun fact section to loading state
       elements.funFactText.innerHTML = '<span class="fun-fact-loading">Generating</span>';
@@ -3079,28 +3267,9 @@
       elements.resultsRoundNumber.textContent = data.roundNumber;
       elements.resultsCurrentRound.textContent = data.roundNumber;
       elements.resultsTotalRounds.textContent = data.totalRounds;
-      
-      // Render round results
-      elements.roundResults.innerHTML = data.results.map(r => {
-        const placeClass = r.place ? `place-${r.place}` : '';
-        const placeText = r.place || '—';
-        const pointsText = r.pointsEarned ? `+${r.pointsEarned} pts` : '';
-        const wordDisplay = r.noSubmission ? '(no submission)' : (r.isInvalid ? `${r.word} (invalid)` : r.word);
-        
-        return `
-          <div class="result-item ${placeClass}">
-            <div class="result-place">${placeText}</div>
-            <div class="result-info">
-              <div class="result-name">${r.name}${r.visibleId === session?.visibleId ? ' (you)' : ''}</div>
-              <div class="result-word-prominent">${wordDisplay}</div>
-            </div>
-            <div class="result-score">
-              <div class="result-word-score">${r.score} pts</div>
-              <div class="result-points-earned">${pointsText}</div>
-            </div>
-          </div>
-        `;
-      }).join('');
+
+      currentRoundResults = data;
+      renderRoundResults();
       
       // Render standings
       renderStandings(elements.standingsList, data.standings);
@@ -3200,6 +3369,7 @@
           
           // Show player's hand letters (what they had to work with)
           const playerLettersDisplay = r.playerLetters ? `<span class="rh-player-letters" title="Player's hand">${r.playerLetters}</span>` : '';
+          const optimalHtml = formatOptimalHistory(r);
           
           return `
             <div class="round-history-row ${placeClass}">
@@ -3214,6 +3384,7 @@
                 <span class="rh-points-earned ${pointsClass}">${pointsText}</span>
                 <span class="rh-running-total">${runningTotal}</span>
               </div>
+              ${optimalHtml}
             </div>
           `;
         }).join('');
@@ -3276,6 +3447,8 @@
     
     function showGameOver(data) {
       hideOverlay();
+
+      currentGameOverData = data;
       
       const winner = data.winner;
       elements.winnerName.textContent = winner.name;
@@ -3568,6 +3741,11 @@
       socket.on('game:roundResults', (data) => {
         showResults(data);
       });
+
+      // Best word update (late-arriving computation)
+      socket.on('game:bestWordUpdate', (data) => {
+        applyBestWordUpdate(data);
+      });
       
       // Fun fact (sent separately after results)
       socket.on('game:funFact', (data) => {
@@ -3615,6 +3793,9 @@
         selectedDice = [];
         hasSubmitted = false;
         currentSubmission = null;
+        currentRoundResults = null;
+        currentGameOverData = null;
+        bestWordState = { roundNumber: null, status: 'idle' };
         
         // Re-fetch state
         socket.emit('lobby:join', {
