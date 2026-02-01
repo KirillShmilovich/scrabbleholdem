@@ -1081,7 +1081,8 @@ Bonus on ${modifierTileId}: ${modifierDesc}`;
       userPrompt += `\n- {"word":"${attempt.word}","tiles":${JSON.stringify(attempt.tiles)}} failed: ${attempt.reason}`;
     }
     const attemptNumber = failedAttempts.length + 1;
-    const maxAttempts = botPlayer.botRetries || 10;
+    const defaultRetries = botPlayer.botDifficulty === 'easy' ? 20 : 10;
+    const maxAttempts = Number.isFinite(botPlayer.botRetries) ? botPlayer.botRetries : defaultRetries;
     userPrompt += `\n\nAttempt ${attemptNumber} of ${maxAttempts}.`;
   }
 
@@ -1571,7 +1572,8 @@ function scheduleBotSubmission(lobby, botPlayer) {
     }
 
     let attempts = 0;
-    const maxAttempts = botPlayer.botRetries || 10;
+    const defaultRetries = botPlayer.botDifficulty === 'easy' ? 20 : 10;
+    const maxAttempts = Number.isFinite(botPlayer.botRetries) ? botPlayer.botRetries : defaultRetries;
     const failedAttempts = []; // Track failed attempts for feedback
 
     while (attempts < maxAttempts) {
@@ -1889,6 +1891,9 @@ io.on('connection', (socket) => {
       ? `🤖 ${availableNames[Math.floor(Math.random() * availableNames.length)]} ${difficultyEmoji}`
       : `🤖 Bot ${usedNames.size + 1} ${difficultyEmoji}`;
 
+    const defaultRetries = difficulty === 'easy' ? 20 : 10;
+    const retries = Number.isFinite(Number(data.retries)) ? Number(data.retries) : defaultRetries;
+
     lobby.players.set(botId, {
       visibleId: botId,
       name: data.name || botName,
@@ -1897,7 +1902,7 @@ io.on('connection', (socket) => {
       isHost: false,
       isBot: true,
       botDifficulty: difficulty,
-      botRetries: data.retries || 10,
+      botRetries: retries,
     });
 
     console.log(`[AI] Added AI player ${botId} (${difficulty}) to lobby ${lobby.code}`);
