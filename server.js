@@ -156,7 +156,7 @@ async function callOpenRouter(messages, options = {}) {
 // Call Gemini API
 // messages: array of {role: 'system'|'user'|'model', content: string}
 // Options:
-//   thinkingLevel: 'none', 'low', 'medium', 'high' (default 'low')
+//   thinkingLevel: 'none', 'minimal', 'low', 'medium', 'high' (default 'low')
 //   timeout: request timeout in ms (default 30000)
 async function callGemini(messages, options = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -1002,13 +1002,16 @@ Bonus on ${modifierTileId}: ${modifierDesc}`;
     for (const attempt of failedAttempts) {
       userPrompt += `\n- {"word":"${attempt.word}","tiles":${JSON.stringify(attempt.tiles)}} failed: ${attempt.reason}`;
     }
+    const attemptNumber = failedAttempts.length + 1;
+    const maxAttempts = botPlayer.botRetries || 10;
+    userPrompt += `\n\nAttempt ${attemptNumber} of ${maxAttempts}.`;
   }
 
   // Choose model and parameters based on bot difficulty
   const isEasy = botPlayer.botDifficulty === 'easy';
   const geminiOptions = isEasy
-    ? { model: 'gemini-3-flash-preview', thinkingLevel: 'low', timeout: 60000 }
-    : { model: 'gemini-3-flash-preview', thinkingLevel: 'medium', timeout: 60000 };
+    ? { model: 'gemini-3-flash-preview', thinkingLevel: 'minimal', timeout: 60000 }
+    : { model: 'gemini-3-flash-preview', thinkingLevel: 'low', timeout: 60000 };
 
   console.log(`[AI] ${botPlayer.name} using ${isEasy ? 'easy' : 'hard'} mode (${geminiOptions.model})`);
 
