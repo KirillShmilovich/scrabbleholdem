@@ -799,6 +799,31 @@ function buildBestWordPayload(lobby, visibleId, submittedScore = 0) {
   };
 }
 
+function computeAverageOptimal(lobby, visibleId) {
+  if (!lobby.roundHistory || lobby.roundHistory.length === 0) return null;
+
+  let sum = 0;
+  let count = 0;
+
+  lobby.roundHistory.forEach(round => {
+    const entry = round.results?.find(r => r.visibleId === visibleId);
+    if (!entry) return;
+    if (typeof entry.bestPercent === 'number') {
+      sum += entry.bestPercent;
+      count++;
+    }
+  });
+
+  if (count === 0) return null;
+  return Math.round(sum / count);
+}
+
+function applyAverageToStandings(lobby, standings) {
+  standings.forEach(s => {
+    s.avgOptimal = computeAverageOptimal(lobby, s.visibleId);
+  });
+}
+
 // Generate fun fact for a set of words (used by revealResults)
 async function generateFunFact(words) {
   if (words.length === 0) return null;
@@ -923,6 +948,10 @@ function revealResults(lobby) {
     communityDice: lobby.communityDice.map(d => d.letter), // Keep as array for visual display
     modifier: lobby.modifier, // Store full modifier object (includes dieIndex, name, desc)
   });
+
+  // Attach average optimal % to standings (now that round history is updated)
+  applyAverageToStandings(lobby, standings);
+  applyAverageToStandings(lobby, standingsSnapshot);
   
   // Check if this is the last round (but don't end game yet - wait for host to view final results)
   const isLastRound = lobby.roundNumber >= lobby.settings.totalRounds;
@@ -1320,12 +1349,20 @@ function scheduleBestWordForBot(lobby, botPlayer) {
             entry.bestScore = bestPayload.bestScore;
             entry.bestPercent = bestPayload.bestPercent;
           }
+
+          const standingEntry = currentRound.standings?.find(s => s.visibleId === botPlayer.visibleId);
+          if (standingEntry) {
+            standingEntry.avgOptimal = computeAverageOptimal(lobby, botPlayer.visibleId);
+          }
         }
+
+        const avgOptimal = computeAverageOptimal(lobby, botPlayer.visibleId);
 
         broadcastToLobby(lobby, 'game:bestWordUpdate', {
           roundNumber: lobby.roundNumber,
           visibleId: botPlayer.visibleId,
           ...bestPayload,
+          avgOptimal,
         });
       }
     } catch (err) {
@@ -2054,12 +2091,20 @@ io.on('connection', (socket) => {
           entry.bestScore = bestPayload.bestScore;
           entry.bestPercent = bestPayload.bestPercent;
         }
+
+        const standingEntry = currentRound.standings?.find(s => s.visibleId === visibleId);
+        if (standingEntry) {
+          standingEntry.avgOptimal = computeAverageOptimal(lobby, visibleId);
+        }
       }
+
+      const avgOptimal = computeAverageOptimal(lobby, visibleId);
 
       broadcastToLobby(lobby, 'game:bestWordUpdate', {
         roundNumber: lobby.roundNumber,
         visibleId,
         ...bestPayload,
+        avgOptimal,
       });
     }
   });
@@ -2086,6 +2131,8 @@ io.on('connection', (socket) => {
         isHost: p.isHost,
       }))
       .sort((a, b) => b.totalPoints - a.totalPoints);
+
+    applyAverageToStandings(lobby, standings);
     
     // Broadcast final results with round history
     broadcastToLobby(lobby, 'game:finalResults', {

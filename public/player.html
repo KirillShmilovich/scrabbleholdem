@@ -1283,10 +1283,28 @@
     }
 
     .standing-points {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
       font-family: 'JetBrains Mono', monospace;
       font-weight: 700;
       color: var(--gold);
       font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .standing-points-sep {
+      color: var(--wood-light);
+      opacity: 0.6;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+
+    .standing-points-avg {
+      color: var(--wood-light);
+      opacity: 0.8;
+      font-weight: 600;
+      font-size: 0.75rem;
     }
     
     /* Next Round Button (host) */
@@ -3233,6 +3251,12 @@
           target.bestPercent = data.bestPercent;
           renderRoundResults();
         }
+
+        const standingEntry = currentRoundResults.standings?.find(s => s.visibleId === data.visibleId);
+        if (standingEntry && typeof data.avgOptimal === 'number') {
+          standingEntry.avgOptimal = data.avgOptimal;
+          renderStandings(elements.standingsList, currentRoundResults.standings);
+        }
       }
 
       if (currentGameOverData?.roundHistory) {
@@ -3247,6 +3271,16 @@
 
           if (!screens.gameover.classList.contains('hidden')) {
             renderRoundHistory(currentGameOverData.roundHistory);
+          }
+        }
+      }
+
+      if (currentGameOverData?.standings && typeof data.avgOptimal === 'number') {
+        const standingEntry = currentGameOverData.standings.find(s => s.visibleId === data.visibleId);
+        if (standingEntry) {
+          standingEntry.avgOptimal = data.avgOptimal;
+          if (!screens.gameover.classList.contains('hidden')) {
+            renderStandings(elements.finalStandingsList, currentGameOverData.standings);
           }
         }
       }
@@ -3300,7 +3334,11 @@
         <div class="standing-item ${i === 0 ? 'leader' : ''}">
           <span class="standing-rank">${i + 1}</span>
           <span class="standing-name">${s.name}${s.visibleId === session?.visibleId ? ' (you)' : ''}</span>
-          <span class="standing-points">${s.totalPoints} pts</span>
+          <span class="standing-points">
+            <span class="standing-points-main">${s.totalPoints} pts</span>
+            <span class="standing-points-sep">•</span>
+            <span class="standing-points-avg">${typeof s.avgOptimal === 'number' ? `${s.avgOptimal}% avg` : 'avg —'}</span>
+          </span>
         </div>
       `).join('');
     }
