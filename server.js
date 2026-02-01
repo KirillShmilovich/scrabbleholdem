@@ -422,12 +422,7 @@ const MODIFIERS = [
   { name: 'Bonus +10', shortName: '+10', multiplier: 1, type: 'bonus', bonus: 10, color: '#16a34a', desc: '+10 points if you use this letter' },
 ];
 
-// Points awarded for placement each round
-const PLACEMENT_POINTS = {
-  1: 3,  // 1st place
-  2: 2,  // 2nd place
-  3: 1,  // 3rd place
-};
+// Placement points are based on total players in the lobby (N -> 1).
 
 // Bot player names (picked randomly, prefixed with 🤖)
 const BOT_NAMES = [
@@ -703,10 +698,12 @@ function getPlayerState(lobby, visibleId) {
 // Calculate placements and award points
 function calculatePlacements(lobby) {
   const submissions = [];
+  const invalidResults = [];
   
-  lobby.playerSubmissions.forEach((submission, visibleId) => {
-    const player = lobby.players.get(visibleId);
-    if (player && submission && submission.isValid) {
+  lobby.players.forEach((player, visibleId) => {
+    const submission = lobby.playerSubmissions.get(visibleId);
+    
+    if (submission && submission.isValid) {
       submissions.push({
         visibleId,
         name: player.name,
@@ -714,58 +711,74 @@ function calculatePlacements(lobby) {
         score: submission.score,
         breakdown: submission.breakdown,
       });
+      return;
     }
+    
+    if (!submission) {
+      submissions.push({
+        visibleId,
+        name: player.name,
+        word: '—',
+        score: 0,
+        breakdown: '',
+        noSubmission: true,
+      });
+      return;
+    }
+    
+    invalidResults.push({
+      visibleId,
+      name: player.name,
+      word: submission.word || '—',
+      score: submission.score || 0,
+      breakdown: submission.breakdown || '',
+      place: null,
+      pointsEarned: 0,
+      isInvalid: true,
+      noSubmission: false,
+    });
   });
   
   // Sort by score descending
   submissions.sort((a, b) => b.score - a.score);
   
-  // Assign placements (handling ties)
-  let currentPlace = 0;
-  let lastScore = null;
-  let skipCount = 0;
+  const totalPlayers = lobby.players.size;
+  const results = [];
+  let idx = 0;
   
-  const results = submissions.map((sub, idx) => {
-    if (sub.score !== lastScore) {
-      currentPlace = idx + 1;
-      lastScore = sub.score;
+  while (idx < submissions.length) {
+    const startIdx = idx;
+    const score = submissions[idx].score;
+    
+    while (idx + 1 < submissions.length && submissions[idx + 1].score === score) {
+      idx++;
     }
     
-    const pointsEarned = PLACEMENT_POINTS[currentPlace] || 0;
+    const endIdx = idx;
+    const startPlace = startIdx + 1;
+    const endPlace = endIdx + 1;
+    const pointsStart = Math.max(totalPlayers - startPlace + 1, 0);
+    const pointsEnd = Math.max(totalPlayers - endPlace + 1, 0);
+    const pointsEarned = (pointsStart + pointsEnd) / 2;
     
-    // Update player's total points
-    const player = lobby.players.get(sub.visibleId);
-    if (player) {
-      player.totalPoints += pointsEarned;
-    }
-    
-    return {
-      ...sub,
-      place: currentPlace,
-      pointsEarned,
-    };
-  });
-  
-  // Add players who didn't submit valid words
-  lobby.players.forEach((player, visibleId) => {
-    const hasResult = results.some(r => r.visibleId === visibleId);
-    if (!hasResult) {
-      const submission = lobby.playerSubmissions.get(visibleId);
+    for (let i = startIdx; i <= endIdx; i++) {
+      const sub = submissions[i];
+      const player = lobby.players.get(sub.visibleId);
+      if (player) {
+        player.totalPoints += pointsEarned;
+      }
+      
       results.push({
-        visibleId,
-        name: player.name,
-        word: submission?.word || '—',
-        score: submission?.score || 0,
-        breakdown: submission?.breakdown || '',
-        place: null,
-        pointsEarned: 0,
-        isInvalid: submission && !submission.isValid,
-        noSubmission: !submission,
+        ...sub,
+        place: startPlace,
+        pointsEarned,
       });
     }
-  });
+    
+    idx++;
+  }
   
-  return results;
+  return results.concat(invalidResults);
 }
 
 // Generate fun fact for a set of words (used by revealResults)
