@@ -2924,6 +2924,13 @@
       let modifierMultiplier = 1;
       let modifierBonusPoints = 0;
       let modifierStatus = '';
+      const formatBonusValue = (bonus) => (bonus > 0 ? `+${bonus}` : `${bonus}`);
+      const formatEffectText = (multiplier, bonus) => {
+        const parts = [];
+        if (multiplier > 1) parts.push(`×${multiplier}`);
+        if (typeof bonus === 'number' && bonus !== 0) parts.push(formatBonusValue(bonus));
+        return parts.join(' ');
+      };
 
       if (modifierSelected) {
         const modDie = getDieData(modifierDieId);
@@ -2941,30 +2948,49 @@
             if (modifier.position === 'start' && modifierLetterPos === 0) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} is FIRST → ×${modifier.multiplier}`;
+              const effectText = formatEffectText(modifierMultiplier, modifier.bonus);
+              modifierStatus = `✓ ${modDie.letter} is FIRST → ${effectText}`;
             } else if (modifier.position === 'end' && modifierLetterPos + modTileLen === letterCount) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} is LAST → ×${modifier.multiplier}`;
+              const effectText = formatEffectText(modifierMultiplier, modifier.bonus);
+              modifierStatus = `✓ ${modDie.letter} is LAST → ${effectText}`;
             } else if (modifier.position === 'middle' && modifierLetterPos > 0 && modifierLetterPos + modTileLen < letterCount) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} is in MIDDLE → ×${modifier.multiplier}`;
+              const effectText = formatEffectText(modifierMultiplier, modifier.bonus);
+              modifierStatus = `✓ ${modDie.letter} is in MIDDLE → ${effectText}`;
             } else if (modifier.position === 'second' && tileContainsLetterPos(1)) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} contains 2nd letter → ×${modifier.multiplier}`;
+              const effectText = formatEffectText(modifierMultiplier, modifier.bonus);
+              modifierStatus = `✓ ${modDie.letter} contains 2nd letter → ${effectText}`;
             } else if (modifier.position === 'penultimate' && tileContainsLetterPos(letterCount - 2) && letterCount >= 2) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} contains 2nd-to-last → ×${modifier.multiplier}`;
+              const effectText = formatEffectText(modifierMultiplier, modifier.bonus);
+              modifierStatus = `✓ ${modDie.letter} contains 2nd-to-last → ${effectText}`;
             } else if (modifier.position === 'center' && letterCount % 2 === 1 && tileContainsLetterPos(Math.floor(letterCount / 2))) {
               modifierApplies = true;
               modifierMultiplier = modifier.multiplier;
-              modifierStatus = `✓ ${modDie.letter} contains CENTER → ×${modifier.multiplier}`;
+              const effectText = formatEffectText(modifierMultiplier, modifier.bonus);
+              modifierStatus = `✓ ${modDie.letter} contains CENTER → ${effectText}`;
+            } else if (modifier.position === 'centerAny') {
+              const midLeft = Math.floor((letterCount - 1) / 2);
+              const midRight = Math.ceil((letterCount - 1) / 2);
+              if (tileContainsLetterPos(midLeft) || tileContainsLetterPos(midRight)) {
+                modifierApplies = true;
+                modifierMultiplier = modifier.multiplier;
+                const effectText = formatEffectText(modifierMultiplier, modifier.bonus);
+                modifierStatus = `✓ ${modDie.letter} contains CENTER → ${effectText}`;
+              }
             } else {
-              const posNames = { start: 'first', end: 'last', middle: 'middle', second: '2nd', penultimate: '2nd-to-last', center: 'center (odd-length word)' };
+              const posNames = { start: 'first', end: 'last', middle: 'middle', second: '2nd', penultimate: '2nd-to-last', center: 'center (odd-length word)', centerAny: 'center' };
               modifierStatus = `✗ ${modDie.letter} not in ${posNames[modifier.position] || modifier.position} position`;
+            }
+
+            if (modifierApplies && typeof modifier.bonus === 'number') {
+              modifierBonusPoints = modifier.bonus;
             }
             break;
 
@@ -2974,16 +3000,24 @@
               modifierApplies = true;
               modifierBonusPoints = modifier.bonus || 0;
               modifierMultiplier = modifier.multiplier || 1;
-              modifierStatus = `✓ Word is ${letterCount} letters (≥${modifier.minLength}) → +${modifier.bonus}`;
+              const effectText = formatEffectText(modifierMultiplier, modifierBonusPoints);
+              modifierStatus = `✓ Word is ${letterCount} letters (≥${modifier.minLength}) → ${effectText}`;
             } else if (modifier.exactLength && letterCount === modifier.exactLength) {
               modifierApplies = true;
               modifierBonusPoints = modifier.bonus || 0;
               modifierMultiplier = modifier.multiplier || 1;
-              const bonusText = modifier.bonus ? ` +${modifier.bonus}` : '';
-              const multText = modifier.multiplier > 1 ? `×${modifier.multiplier}` : '';
-              modifierStatus = `✓ Word is exactly ${letterCount} letters → ${multText}${bonusText}`;
+              const effectText = formatEffectText(modifierMultiplier, modifierBonusPoints);
+              modifierStatus = `✓ Word is exactly ${letterCount} letters → ${effectText}`;
+            } else if (modifier.maxLength && letterCount <= modifier.maxLength) {
+              modifierApplies = true;
+              modifierBonusPoints = modifier.bonus || 0;
+              modifierMultiplier = modifier.multiplier || 1;
+              const effectText = formatEffectText(modifierMultiplier, modifierBonusPoints);
+              modifierStatus = `✓ Word is ${letterCount} letters (≤${modifier.maxLength}) → ${effectText}`;
             } else {
-              const needed = modifier.minLength ? `≥${modifier.minLength}` : `=${modifier.exactLength}`;
+              const needed = modifier.minLength
+                ? `≥${modifier.minLength}`
+                : (modifier.maxLength ? `≤${modifier.maxLength}` : `=${modifier.exactLength}`);
               modifierStatus = `✗ Word is ${letterCount} letters (need ${needed})`;
             }
             break;
@@ -2994,7 +3028,7 @@
             if ((modifier.parity === 'odd' && isOdd) || (modifier.parity === 'even' && !isOdd)) {
               modifierApplies = true;
               modifierBonusPoints = modifier.bonus;
-              modifierStatus = `✓ Word has ${letterCount} (${modifier.parity}) letters → +${modifier.bonus}`;
+              modifierStatus = `✓ Word has ${letterCount} (${modifier.parity}) letters → ${formatBonusValue(modifier.bonus)}`;
             } else {
               modifierStatus = `✗ Word has ${letterCount} letters (not ${modifier.parity})`;
             }
@@ -3026,16 +3060,28 @@
             if (modifier.compositionType === 'balanced' && vowelCount === consonantCount) {
               modifierApplies = true;
               modifierBonusPoints = modifier.bonus;
-              modifierStatus = `✓ Balanced: ${vowelCount}V = ${consonantCount}C → +${modifier.bonus}`;
+              modifierStatus = `✓ Balanced: ${vowelCount}V = ${consonantCount}C → ${formatBonusValue(modifier.bonus)}`;
             } else if (modifier.compositionType === 'vowelRich' && vowelCount > consonantCount) {
               modifierApplies = true;
               modifierBonusPoints = modifier.bonus;
-              modifierStatus = `✓ Vowel Rich: ${vowelCount}V > ${consonantCount}C → +${modifier.bonus}`;
+              modifierStatus = `✓ Vowel Rich: ${vowelCount}V > ${consonantCount}C → ${formatBonusValue(modifier.bonus)}`;
+            } else if (modifier.compositionType === 'vowelCount' && vowelCount >= (modifier.minVowels || 0)) {
+              modifierApplies = true;
+              modifierBonusPoints = modifier.bonus;
+              modifierStatus = `✓ Vowels: ${vowelCount} (≥${modifier.minVowels}) → ${formatBonusValue(modifier.bonus)}`;
+            } else if (modifier.compositionType === 'consonantCount' && consonantCount >= (modifier.minConsonants || 0)) {
+              modifierApplies = true;
+              modifierBonusPoints = modifier.bonus;
+              modifierStatus = `✓ Consonants: ${consonantCount} (≥${modifier.minConsonants}) → ${formatBonusValue(modifier.bonus)}`;
             } else {
               if (modifier.compositionType === 'balanced') {
                 modifierStatus = `✗ Not balanced: ${vowelCount}V ≠ ${consonantCount}C`;
-              } else {
+              } else if (modifier.compositionType === 'vowelRich') {
                 modifierStatus = `✗ Not vowel-rich: ${vowelCount}V ≤ ${consonantCount}C`;
+              } else if (modifier.compositionType === 'vowelCount') {
+                modifierStatus = `✗ Vowels: ${vowelCount} (need ≥${modifier.minVowels})`;
+              } else if (modifier.compositionType === 'consonantCount') {
+                modifierStatus = `✗ Consonants: ${consonantCount} (need ≥${modifier.minConsonants})`;
               }
             }
             break;
@@ -3043,7 +3089,7 @@
           case 'bonus':
             modifierApplies = true;
             modifierBonusPoints = modifier.bonus;
-            modifierStatus = `✓ Bonus: +${modifier.bonus} points`;
+            modifierStatus = `✓ Bonus: ${formatBonusValue(modifier.bonus)} points`;
             break;
         }
       }
@@ -3068,8 +3114,11 @@
       const totalScore = baseScore + modifierBonusPoints;
       let breakdown = letterScores.map(l => `${l.letter}(${l.points})`).join(' + ');
       
-      if (modifierBonusPoints > 0) {
-        breakdown += ` + ${modifierBonusPoints}`;
+      if (modifierBonusPoints !== 0) {
+        const bonusText = modifierBonusPoints > 0
+          ? ` + ${modifierBonusPoints}`
+          : ` - ${Math.abs(modifierBonusPoints)}`;
+        breakdown += bonusText;
       }
       
       breakdown += ` = ${totalScore}`;

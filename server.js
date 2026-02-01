@@ -420,6 +420,14 @@ const MODIFIERS = [
   { name: 'Vowel Rich', shortName: 'V>C', multiplier: 1, type: 'composition', compositionType: 'vowelRich', bonus: 6, color: '#6366f1', desc: '+6 if word has more vowels than consonants' },
   { name: 'Bonus +3', shortName: '+3', multiplier: 1, type: 'bonus', bonus: 3, color: '#22c55e', desc: '+3 points if you use this letter' },
   { name: 'Bonus +4', shortName: '+4', multiplier: 1, type: 'bonus', bonus: 4, color: '#16a34a', desc: '+4 points if you use this letter' },
+  { name: 'Rusty Tile', shortName: 'RUST', multiplier: 1, type: 'bonus', bonus: -2, color: '#64748b', desc: '-2 points if you use this letter' },
+  { name: 'Dull Edge', shortName: 'DUL', multiplier: 1, type: 'length', minLength: 4, bonus: -2, color: '#94a3b8', desc: '-2 if your word is 4+ letters' },
+  { name: 'Vowel Tax', shortName: 'VTX', multiplier: 1, type: 'composition', compositionType: 'vowelCount', minVowels: 3, bonus: -2, color: '#f87171', desc: '-2 if word has 3+ vowels' },
+  { name: 'Consonant Tax', shortName: 'CTX', multiplier: 1, type: 'composition', compositionType: 'consonantCount', minConsonants: 4, bonus: -2, color: '#fb7185', desc: '-2 if word has 4+ consonants' },
+  { name: 'Off-by-One', shortName: '1ST-', multiplier: 1, type: 'position', position: 'start', bonus: -3, color: '#ef4444', desc: '-3 if used as FIRST letter of your word' },
+  { name: 'Trailing Drag', shortName: 'END-', multiplier: 1, type: 'position', position: 'end', bonus: -3, color: '#f97316', desc: '-3 if used as LAST letter of your word' },
+  { name: 'Center Jinx', shortName: 'CTR-', multiplier: 1, type: 'position', position: 'centerAny', bonus: -3, color: '#f43f5e', desc: '-3 if used as the MIDDLE letter of your word' },
+  { name: 'Short Circuit', shortName: '4-', multiplier: 1, type: 'length', maxLength: 4, bonus: -4, color: '#dc2626', desc: '-4 if your word is 4 letters or fewer' },
 ];
 
 // Placement points are based on total players in the lobby (N -> 1).
@@ -516,25 +524,79 @@ function drawLetter(lobby) {
   return { ...lobby.letterDeck[lobby.deckIndex++] };
 }
 
-// Ensure at least one vowel in a set of dice
-function ensureVowel(dice, lobby) {
-  const vowels = ['A', 'E', 'I', 'O', 'U'];
-  const hasVowel = dice.some(d => vowels.includes(d.letter));
-  
-  if (!hasVowel) {
-    const vowelLetter = vowels[Math.floor(Math.random() * vowels.length)];
-    const vowelData = LETTERS.find(l => l.letter === vowelLetter);
-    const replaceIndex = Math.floor(Math.random() * dice.length);
-    dice[replaceIndex] = { ...vowelData };
+const VOWELS = ['A', 'E', 'I', 'O', 'U'];
+const CONSONANTS = LETTERS.filter(l => !VOWELS.includes(l.letter)).map(l => l.letter);
+
+function isVowelLetter(letter) {
+  return VOWELS.includes(letter);
+}
+
+function getRandomLetterFrom(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function replaceRandomDie(dice, matchFn, newLetter) {
+  const indices = dice
+    .map((die, idx) => (matchFn(die) ? idx : -1))
+    .filter(idx => idx >= 0);
+  if (indices.length === 0) return false;
+
+  const replaceIndex = indices[Math.floor(Math.random() * indices.length)];
+  const letterData = LETTERS.find(l => l.letter === newLetter);
+  if (!letterData) return false;
+  dice[replaceIndex] = { ...letterData };
+  return true;
+}
+
+// Ensure player hand has at least one vowel and one consonant
+function ensurePlayerBalance(dice) {
+  const vowelCount = dice.filter(d => isVowelLetter(d.letter)).length;
+
+  if (vowelCount === 0) {
+    const vowelLetter = getRandomLetterFrom(VOWELS);
+    replaceRandomDie(dice, d => !isVowelLetter(d.letter), vowelLetter);
+    return dice;
   }
-  
+
+  if (vowelCount === dice.length) {
+    const consonantLetter = getRandomLetterFrom(CONSONANTS);
+    replaceRandomDie(dice, d => isVowelLetter(d.letter), consonantLetter);
+  }
+
+  return dice;
+}
+
+// Ensure community dice have at least 2 vowels and 2 consonants
+function ensureCommunityBalance(dice) {
+  let vowelCount = dice.filter(d => isVowelLetter(d.letter)).length;
+  let consonantCount = dice.length - vowelCount;
+  let guard = 0;
+
+  while (vowelCount < 2 && guard < 10) {
+    const vowelLetter = getRandomLetterFrom(VOWELS);
+    if (replaceRandomDie(dice, d => !isVowelLetter(d.letter), vowelLetter)) {
+      vowelCount += 1;
+      consonantCount -= 1;
+    }
+    guard += 1;
+  }
+
+  while (consonantCount < 2 && guard < 20) {
+    const consonantLetter = getRandomLetterFrom(CONSONANTS);
+    if (replaceRandomDie(dice, d => isVowelLetter(d.letter), consonantLetter)) {
+      consonantCount += 1;
+      vowelCount -= 1;
+    }
+    guard += 1;
+  }
+
   return dice;
 }
 
 // Roll dice for a player (3 dice)
 function rollPlayerDice(lobby) {
   const dice = [drawLetter(lobby), drawLetter(lobby), drawLetter(lobby)];
-  return ensureVowel(dice, lobby);
+  return ensurePlayerBalance(dice);
 }
 
 // Roll community dice (5 dice) - ensures variety
@@ -555,8 +617,8 @@ function rollCommunityDice(lobby) {
   while (dice.length < 5) {
     dice.push(drawLetter(lobby));
   }
-  
-  return ensureVowel(dice, lobby);
+
+  return ensureCommunityBalance(dice);
 }
 
 // Generate a random modifier attached to a die
@@ -1182,6 +1244,17 @@ function computeScoreFromSequence(sequence, modifier) {
         } else if (modifier.position === 'center' && letterCount % 2 === 1 && tileContainsLetterPos(Math.floor(letterCount / 2))) {
           modifierApplies = true;
           modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'centerAny') {
+          const midLeft = Math.floor((letterCount - 1) / 2);
+          const midRight = Math.ceil((letterCount - 1) / 2);
+          if (tileContainsLetterPos(midLeft) || tileContainsLetterPos(midRight)) {
+            modifierApplies = true;
+            modifierMultiplier = modifier.multiplier;
+          }
+        }
+
+        if (modifierApplies && typeof modifier.bonus === 'number') {
+          modifierBonusPoints = modifier.bonus;
         }
         break;
 
@@ -1191,6 +1264,10 @@ function computeScoreFromSequence(sequence, modifier) {
           modifierBonusPoints = modifier.bonus || 0;
           modifierMultiplier = modifier.multiplier || 1;
         } else if (modifier.exactLength && letterCount === modifier.exactLength) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus || 0;
+          modifierMultiplier = modifier.multiplier || 1;
+        } else if (modifier.maxLength && letterCount <= modifier.maxLength) {
           modifierApplies = true;
           modifierBonusPoints = modifier.bonus || 0;
           modifierMultiplier = modifier.multiplier || 1;
@@ -1227,6 +1304,12 @@ function computeScoreFromSequence(sequence, modifier) {
           modifierApplies = true;
           modifierBonusPoints = modifier.bonus;
         } else if (modifier.compositionType === 'vowelRich' && vowelCount > consonantCount) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        } else if (modifier.compositionType === 'vowelCount' && vowelCount >= (modifier.minVowels || 0)) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        } else if (modifier.compositionType === 'consonantCount' && consonantCount >= (modifier.minConsonants || 0)) {
           modifierApplies = true;
           modifierBonusPoints = modifier.bonus;
         }
@@ -1474,6 +1557,17 @@ function validateAndScoreBotWord(lobby, player, word, tileIds) {
         } else if (modifier.position === 'center' && letterCount % 2 === 1 && tileContainsLetterPos(Math.floor(letterCount / 2))) {
           modifierApplies = true;
           modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'centerAny') {
+          const midLeft = Math.floor((letterCount - 1) / 2);
+          const midRight = Math.ceil((letterCount - 1) / 2);
+          if (tileContainsLetterPos(midLeft) || tileContainsLetterPos(midRight)) {
+            modifierApplies = true;
+            modifierMultiplier = modifier.multiplier;
+          }
+        }
+
+        if (modifierApplies && typeof modifier.bonus === 'number') {
+          modifierBonusPoints = modifier.bonus;
         }
         break;
 
@@ -1483,6 +1577,10 @@ function validateAndScoreBotWord(lobby, player, word, tileIds) {
           modifierBonusPoints = modifier.bonus || 0;
           modifierMultiplier = modifier.multiplier || 1;
         } else if (modifier.exactLength && letterCount === modifier.exactLength) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus || 0;
+          modifierMultiplier = modifier.multiplier || 1;
+        } else if (modifier.maxLength && letterCount <= modifier.maxLength) {
           modifierApplies = true;
           modifierBonusPoints = modifier.bonus || 0;
           modifierMultiplier = modifier.multiplier || 1;
@@ -1519,6 +1617,12 @@ function validateAndScoreBotWord(lobby, player, word, tileIds) {
         } else if (modifier.compositionType === 'vowelRich' && vowelCount > consonantCount) {
           modifierApplies = true;
           modifierBonusPoints = modifier.bonus;
+        } else if (modifier.compositionType === 'vowelCount' && vowelCount >= (modifier.minVowels || 0)) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        } else if (modifier.compositionType === 'consonantCount' && consonantCount >= (modifier.minConsonants || 0)) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
         }
         break;
 
@@ -1547,8 +1651,11 @@ function validateAndScoreBotWord(lobby, player, word, tileIds) {
 
   const totalScore = baseScore + modifierBonusPoints;
   let breakdown = letterScores.map(l => `${l.letter}(${l.points})`).join(' + ');
-  if (modifierBonusPoints > 0) {
-    breakdown += ` + ${modifierBonusPoints}`;
+  if (modifierBonusPoints !== 0) {
+    const bonusText = modifierBonusPoints > 0
+      ? ` + ${modifierBonusPoints}`
+      : ` - ${Math.abs(modifierBonusPoints)}`;
+    breakdown += bonusText;
   }
   breakdown += ` = ${totalScore}`;
 

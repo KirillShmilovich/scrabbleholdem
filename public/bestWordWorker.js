@@ -69,6 +69,17 @@ function scoreSequence(sequence, modifier) {
         } else if (modifier.position === 'center' && letterCount % 2 === 1 && tileContainsLetterPos(Math.floor(letterCount / 2))) {
           modifierApplies = true;
           modifierMultiplier = modifier.multiplier;
+        } else if (modifier.position === 'centerAny') {
+          const midLeft = Math.floor((letterCount - 1) / 2);
+          const midRight = Math.ceil((letterCount - 1) / 2);
+          if (tileContainsLetterPos(midLeft) || tileContainsLetterPos(midRight)) {
+            modifierApplies = true;
+            modifierMultiplier = modifier.multiplier;
+          }
+        }
+
+        if (modifierApplies && typeof modifier.bonus === 'number') {
+          modifierBonusPoints = modifier.bonus;
         }
         break;
 
@@ -78,6 +89,10 @@ function scoreSequence(sequence, modifier) {
           modifierBonusPoints = modifier.bonus || 0;
           modifierMultiplier = modifier.multiplier || 1;
         } else if (modifier.exactLength && letterCount === modifier.exactLength) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus || 0;
+          modifierMultiplier = modifier.multiplier || 1;
+        } else if (modifier.maxLength && letterCount <= modifier.maxLength) {
           modifierApplies = true;
           modifierBonusPoints = modifier.bonus || 0;
           modifierMultiplier = modifier.multiplier || 1;
@@ -114,6 +129,12 @@ function scoreSequence(sequence, modifier) {
           modifierApplies = true;
           modifierBonusPoints = modifier.bonus;
         } else if (modifier.compositionType === 'vowelRich' && vowelCount > consonantCount) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        } else if (modifier.compositionType === 'vowelCount' && vowelCount >= (modifier.minVowels || 0)) {
+          modifierApplies = true;
+          modifierBonusPoints = modifier.bonus;
+        } else if (modifier.compositionType === 'consonantCount' && consonantCount >= (modifier.minConsonants || 0)) {
           modifierApplies = true;
           modifierBonusPoints = modifier.bonus;
         }
