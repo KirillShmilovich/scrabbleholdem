@@ -372,6 +372,7 @@
     .setting-label {
       color: var(--cream);
       font-size: 0.95rem;
+      font-family: var(--font-body);
     }
     
     .setting-control {
@@ -390,6 +391,8 @@
       font-size: 1.2rem;
       cursor: pointer;
       transition: all 0.2s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     
     .setting-btn:hover {
@@ -402,6 +405,85 @@
       font-family: 'JetBrains Mono', monospace;
       font-weight: 600;
       color: var(--cream);
+    }
+
+    .timer-setting {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "label control"
+        "presets presets";
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .timer-setting .setting-label {
+      grid-area: label;
+      margin: 0;
+      justify-self: start;
+    }
+
+    .timer-setting-group {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      width: 100%;
+      grid-area: presets;
+    }
+
+    .timer-control {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      justify-content: flex-start;
+      grid-area: control;
+      justify-self: end;
+    }
+
+    .timer-presets {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
+      gap: 6px;
+      width: 100%;
+    }
+
+    .timer-preset {
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--wood-light);
+      border-radius: 8px;
+      padding: 6px 8px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .timer-preset.active {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(212, 175, 55, 0.12);
+      box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.2);
+    }
+
+    .timer-preset.recommended:not(.active) {
+      border-color: rgba(212, 175, 55, 0.55);
+      background: rgba(212, 175, 55, 0.08);
+      box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.2);
+    }
+
+    .timer-hint {
+      font-size: 0.68rem;
+      color: var(--wood-light);
+      opacity: 0.8;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: left;
     }
 
     .add-bot-btn {
@@ -2050,12 +2132,22 @@
           <button class="setting-btn" id="roundsUp">+</button>
         </div>
       </div>
-      <div class="setting-row">
+      <div class="setting-row timer-setting">
         <span class="setting-label">Timer</span>
-        <div class="setting-control">
+        <div class="timer-control">
           <button class="setting-btn" id="timerDown">−</button>
           <span class="setting-value" id="timerValue">1:15</span>
           <button class="setting-btn" id="timerUp">+</button>
+        </div>
+        <div class="timer-setting-group">
+          <div class="timer-presets" id="timerPresets">
+            <button class="timer-preset" data-seconds="75">1:15</button>
+            <button class="timer-preset" data-seconds="180">3:00</button>
+            <button class="timer-preset" data-seconds="300">5:00</button>
+            <button class="timer-preset" data-seconds="480">8:00</button>
+            <button class="timer-preset" data-seconds="600">10:00</button>
+          </div>
+          <div class="timer-hint" id="timerHint">Recommended: 1:15</div>
         </div>
       </div>
       <div class="add-bot-dropdown" id="addBotDropdown">
@@ -2377,6 +2469,8 @@
       hostSettings: document.getElementById('hostSettings'),
       roundsValue: document.getElementById('roundsValue'),
       timerValue: document.getElementById('timerValue'),
+      timerPresets: document.getElementById('timerPresets'),
+      timerHint: document.getElementById('timerHint'),
       addBotBtn: document.getElementById('addBotBtn'),
       startGameBtn: document.getElementById('startGameBtn'),
       waitingMessage: document.getElementById('waitingMessage'),
@@ -2633,6 +2727,19 @@
       // Update settings display
       elements.roundsValue.textContent = state.settings.totalRounds;
       elements.timerValue.textContent = formatTime(state.settings.timerDuration);
+      settingsRounds = state.settings.totalRounds;
+      settingsTimer = state.settings.timerDuration;
+
+      currentPlayerCount = state.players.length;
+      currentRecommendedTimer = getRecommendedTimerSeconds(currentPlayerCount);
+
+      if (state.isHost) {
+        if (autoTimerEnabled && settingsTimer !== currentRecommendedTimer) {
+          setTimer(currentRecommendedTimer);
+        } else {
+          updateTimerPresetState(settingsTimer);
+        }
+      }
 
       // Disable start if no players (allow solo play)
       elements.startGameBtn.disabled = state.players.length < 1;
@@ -2641,6 +2748,44 @@
     // Settings controls
     let settingsRounds = 10;
     let settingsTimer = 75;
+    let autoTimerEnabled = true;
+    let currentRecommendedTimer = 75;
+    let currentPlayerCount = 0;
+
+    const TIMER_PRESETS = [75, 180, 300, 480, 600];
+
+    function getRecommendedTimerSeconds(playerCount) {
+      if (playerCount <= 2) return 75;
+      if (playerCount === 3) return 180;
+      if (playerCount === 4) return 300;
+      if (playerCount === 5) return 480;
+      return 600;
+    }
+
+    function updateTimerPresetState(currentSeconds) {
+      if (!elements.timerPresets) return;
+
+      const buttons = elements.timerPresets.querySelectorAll('.timer-preset');
+      buttons.forEach(btn => {
+        const seconds = Number(btn.dataset.seconds);
+        btn.classList.toggle('active', seconds === currentSeconds);
+        btn.classList.toggle('recommended', seconds === currentRecommendedTimer);
+      });
+
+      if (elements.timerHint) {
+        const playerLabel = currentPlayerCount === 1 ? 'player' : 'players';
+        elements.timerHint.textContent = `Recommended: ${formatTime(currentRecommendedTimer)} for ${currentPlayerCount} ${playerLabel}`;
+      }
+    }
+
+    function setTimer(seconds, { emit = true } = {}) {
+      settingsTimer = Math.max(30, Math.min(600, seconds));
+      elements.timerValue.textContent = formatTime(settingsTimer);
+      updateTimerPresetState(settingsTimer);
+      if (emit) {
+        socket.emit('lobby:updateSettings', { timerDuration: settingsTimer });
+      }
+    }
     
     document.getElementById('roundsDown').addEventListener('click', () => {
       settingsRounds = Math.max(3, settingsRounds - 1);
@@ -2655,16 +2800,25 @@
     });
     
     document.getElementById('timerDown').addEventListener('click', () => {
-      settingsTimer = Math.max(30, settingsTimer - 15);
-      elements.timerValue.textContent = formatTime(settingsTimer);
-      socket.emit('lobby:updateSettings', { timerDuration: settingsTimer });
+      autoTimerEnabled = false;
+      setTimer(settingsTimer - 15);
     });
     
     document.getElementById('timerUp').addEventListener('click', () => {
-      settingsTimer = Math.min(600, settingsTimer + 15);
-      elements.timerValue.textContent = formatTime(settingsTimer);
-      socket.emit('lobby:updateSettings', { timerDuration: settingsTimer });
+      autoTimerEnabled = false;
+      setTimer(settingsTimer + 15);
     });
+
+    if (elements.timerPresets) {
+      elements.timerPresets.querySelectorAll('.timer-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const seconds = Number(btn.dataset.seconds);
+          if (!Number.isFinite(seconds)) return;
+          autoTimerEnabled = false;
+          setTimer(seconds);
+        });
+      });
+    }
 
     // Add bot dropdown toggle
     const addBotDropdown = document.getElementById('addBotDropdown');
@@ -3622,6 +3776,7 @@
         setUrlLobbyCode(data.lobbyCode); // Update URL to /play/CODE
         settingsRounds = data.state.settings.totalRounds;
         settingsTimer = data.state.settings.timerDuration;
+        autoTimerEnabled = true;
         updateWaitingRoom(data.state);
         showScreen('waiting');
       });
@@ -3632,6 +3787,7 @@
         setUrlLobbyCode(data.lobbyCode); // Update URL to /play/CODE
         settingsRounds = data.state.settings.totalRounds;
         settingsTimer = data.state.settings.timerDuration;
+        autoTimerEnabled = true;
         updateWaitingRoom(data.state);
         showScreen('waiting');
       });
@@ -3742,6 +3898,7 @@
         settingsTimer = settings.timerDuration;
         elements.roundsValue.textContent = settingsRounds;
         elements.timerValue.textContent = formatTime(settingsTimer);
+        updateTimerPresetState(settingsTimer);
         if (currentState) {
           currentState.settings = settings;
         }
@@ -3883,6 +4040,7 @@
         currentRoundResults = null;
         currentGameOverData = null;
         bestWordState = { roundNumber: null, status: 'idle' };
+        autoTimerEnabled = true;
         
         // Re-fetch state
         socket.emit('lobby:join', {
