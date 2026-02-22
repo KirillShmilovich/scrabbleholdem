@@ -953,44 +953,72 @@
       z-index: 10;
     }
 
-    /* Re-roll button on player dice */
-    .die-reroll {
-      position: absolute;
-      top: -8px;
-      left: -8px;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--burgundy);
-      color: #fff;
-      border: 2px solid rgba(255,255,255,0.3);
-      font-size: 0.65rem;
-      line-height: 1;
+    /* Re-roll prompt (fixed bottom-right) */
+    .reroll-prompt {
+      position: fixed;
+      bottom: 20px;
+      right: 16px;
+      background: linear-gradient(145deg, #fffef9 0%, var(--die-bg) 100%);
+      border: 2px solid var(--gold);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      z-index: 100;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+    }
+    .reroll-prompt.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .reroll-prompt-letter {
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-size: 1.4rem;
+      color: var(--felt-dark);
+      background: linear-gradient(145deg, #fff 0%, #f5f0e0 100%);
+      border: 2px solid rgba(201, 166, 107, 0.4);
+      border-radius: 8px;
+      width: 38px;
+      height: 38px;
       display: flex;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
-      z-index: 15;
-      opacity: 0.85;
-      transition: opacity 0.15s, transform 0.15s;
+      flex-shrink: 0;
     }
-    .die-reroll:hover {
-      opacity: 1;
-      transform: scale(1.15);
-    }
-    .die-reroll:active {
-      transform: scale(0.95);
-    }
-
-    .reroll-indicator {
-      text-align: center;
+    .reroll-prompt-btn {
+      background: var(--burgundy);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 12px;
       font-family: var(--font-body);
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      margin-top: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
     }
-    .reroll-indicator.available {
-      color: var(--gold);
+    .reroll-prompt-btn:hover {
+      background: color-mix(in srgb, var(--burgundy) 85%, #fff);
+    }
+    .reroll-prompt-btn:active {
+      transform: scale(0.97);
+    }
+    .reroll-prompt-hint {
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      position: absolute;
+      bottom: -16px;
+      right: 0;
+      white-space: nowrap;
     }
 
     /* Re-roll spin animation */
@@ -2266,7 +2294,6 @@
         <div class="your-dice-row" id="playerDice">
           <!-- Player dice inserted here -->
         </div>
-        <div class="reroll-indicator" id="rerollIndicator"></div>
       </div>
       
       <!-- Word Building -->
@@ -2308,6 +2335,13 @@
         <button class="end-game-btn hidden" id="endGameBtn">✕ End Game</button>
       </div>
     </main>
+
+    <!-- Re-roll prompt (fixed bottom-right) -->
+    <div class="reroll-prompt" id="rerollPrompt">
+      <span class="reroll-prompt-letter" id="rerollPromptLetter">A</span>
+      <button class="reroll-prompt-btn" id="rerollPromptBtn">↻ Re-roll</button>
+      <span class="reroll-prompt-hint">1 per round</span>
+    </div>
   </div>
 
   <!-- ========================================
@@ -2405,6 +2439,7 @@
     let currentSubmission = null;
     let hasSubmitted = false;
     let currentFunFact = null; // Track current fun fact for image generation
+    let lastClickedPlayerDie = null; // Track last player die clicked for re-roll prompt
     let bestWordWorker = null;
     let bestWordState = { roundNumber: null, status: 'idle' };
     let currentRoundResults = null;
@@ -2539,7 +2574,9 @@
       modifierName: document.getElementById('modifierName'),
       modifierDesc: document.getElementById('modifierDesc'),
       playerDice: document.getElementById('playerDice'),
-      rerollIndicator: document.getElementById('rerollIndicator'),
+      rerollPrompt: document.getElementById('rerollPrompt'),
+      rerollPromptLetter: document.getElementById('rerollPromptLetter'),
+      rerollPromptBtn: document.getElementById('rerollPromptBtn'),
       wordText: document.getElementById('wordText'),
       wordStatus: document.getElementById('wordStatus'),
       clearBtn: document.getElementById('clearBtn'),
@@ -2965,9 +3002,10 @@
       // Clear selection
       selectedDice = [];
       hasSubmitted = false;
+      lastClickedPlayerDie = null;
       currentSubmission = null;
       elements.submissionStatus.classList.add('hidden');
-      
+
       renderDice();
       calculateScore();
       updatePlayersStatus(state.players);
@@ -2998,7 +3036,6 @@
       }).join('');
       
       // Player dice
-      const canReroll = !currentState.player.hasRerolled && !currentState.revealed && !hasSubmitted;
       elements.playerDice.innerHTML = currentState.player.dice.map((die, i) => {
         const dieId = `player-${i}`;
         const isSelected = selectedDice.includes(dieId);
@@ -3007,7 +3044,6 @@
         return `
           <div class="die medium ${isSelected ? 'selected' : ''}"
                data-die-id="${dieId}">
-            ${canReroll ? `<button class="die-reroll" data-reroll-index="${i}" title="Re-roll this tile">↻</button>` : ''}
             <span class="die-letter">${die.letter}</span>
             <span class="die-points">${die.points}</span>
             ${isSelected ? `<span class="die-order">${order}</span>` : ''}
@@ -3015,30 +3051,13 @@
         `;
       }).join('');
 
-      // Update re-roll indicator
-      if (currentState.revealed) {
-        elements.rerollIndicator.textContent = '';
-      } else if (currentState.player.hasRerolled) {
-        elements.rerollIndicator.textContent = 'Re-roll used';
-        elements.rerollIndicator.className = 'reroll-indicator';
-      } else {
-        elements.rerollIndicator.textContent = '1 re-roll available';
-        elements.rerollIndicator.className = 'reroll-indicator available';
-      }
-      
       // Add click handlers
       document.querySelectorAll('.die[data-die-id]').forEach(el => {
         el.addEventListener('click', () => toggleDie(el.dataset.dieId));
       });
 
-      // Add re-roll button handlers
-      document.querySelectorAll('.die-reroll[data-reroll-index]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const dieIndex = parseInt(btn.dataset.rerollIndex);
-          socket.emit('player:reroll', { dieIndex });
-        });
-      });
+      // Update re-roll prompt visibility
+      updateRerollPrompt();
     }
     
     function toggleDie(dieId) {
@@ -3048,10 +3067,37 @@
       } else {
         selectedDice.push(dieId);
       }
+      // Track last clicked player die for re-roll prompt
+      if (dieId.startsWith('player-')) {
+        lastClickedPlayerDie = parseInt(dieId.split('-')[1]);
+      }
       renderDice();
       calculateScore();
     }
-    
+
+    function updateRerollPrompt() {
+      if (!currentState) {
+        elements.rerollPrompt.classList.remove('visible');
+        return;
+      }
+      const canReroll = !currentState.player.hasRerolled && !currentState.revealed && !hasSubmitted;
+      if (canReroll && lastClickedPlayerDie !== null) {
+        const die = currentState.player.dice[lastClickedPlayerDie];
+        if (die) {
+          elements.rerollPromptLetter.textContent = die.letter;
+          elements.rerollPrompt.classList.add('visible');
+          return;
+        }
+      }
+      elements.rerollPrompt.classList.remove('visible');
+    }
+
+    // Wire up re-roll prompt button (once)
+    document.getElementById('rerollPromptBtn').addEventListener('click', () => {
+      if (lastClickedPlayerDie === null) return;
+      socket.emit('player:reroll', { dieIndex: lastClickedPlayerDie });
+    });
+
     function getDieData(dieId) {
       const [type, indexStr] = dieId.split('-');
       const index = parseInt(indexStr);
@@ -4060,6 +4106,7 @@
         if (!currentState) return;
         currentState.player.dice[data.dieIndex] = data.newDie;
         currentState.player.hasRerolled = data.hasRerolled;
+        lastClickedPlayerDie = null;
 
         // Deselect the re-rolled die if it was selected
         const rerolledDieId = `player-${data.dieIndex}`;
@@ -4143,6 +4190,7 @@
         currentState = null;
         selectedDice = [];
         hasSubmitted = false;
+        lastClickedPlayerDie = null;
         currentSubmission = null;
         currentRoundResults = null;
         currentGameOverData = null;
