@@ -1272,7 +1272,7 @@
     /* Round Results - Compact Layout */
     .round-results {
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       margin-bottom: var(--space-md);
     }
 
@@ -1325,6 +1325,7 @@
     .result-info {
       flex: 1;
       min-width: 0;
+      padding-right: var(--space-xs);
     }
 
     .result-name {
@@ -1397,26 +1398,27 @@
 
     .result-expand-toggle {
       flex-shrink: 0;
-      width: 26px;
-      height: 26px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      color: var(--wood-light);
-      opacity: 0.4;
-      transition: opacity 0.2s, transform 0.2s;
-      font-size: 0.7rem;
-      border-radius: 50%;
-      margin-left: auto;
+      color: var(--gold-light);
+      opacity: 0.55;
+      transition: opacity 0.2s, transform 0.2s, background 0.2s;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      margin-left: var(--space-sm);
     }
     .result-expand-toggle:hover {
-      opacity: 0.9;
-      background: rgba(255, 255, 255, 0.08);
+      opacity: 1;
+      background: rgba(212, 175, 55, 0.12);
     }
     .result-expand-toggle.expanded {
-      opacity: 0.9;
+      opacity: 1;
       transform: rotate(180deg);
+      background: rgba(212, 175, 55, 0.1);
     }
     .result-expand-toggle.no-def {
       visibility: hidden;
