@@ -1155,35 +1155,43 @@ function revealResults(lobby) {
     broadcastToLobby(lobby, 'game:funFact', { funFact: null, failed: true });
   }
 
-  // Generate and broadcast word definitions asynchronously
-  const defPairs = resultsWithBest
-    .filter(r => {
-      const hasValidSubmission = r.word && !r.isInvalid && !r.noSubmission;
-      const hasOptimal = r.bestWord && typeof r.bestScore === 'number' && r.bestScore > 0;
-      return hasValidSubmission || hasOptimal;
-    })
-    .map(r => ({
-      visibleId: r.visibleId,
-      submitted: (!r.isInvalid && !r.noSubmission && r.word) ? r.word : null,
-      optimal: (r.bestWord && typeof r.bestScore === 'number' && r.bestScore > 0) ? r.bestWord : null,
-    }));
+  // Generate and broadcast word definitions asynchronously.
+  // Delay slightly so bot optimal words (computed async) have time to populate.
+  setTimeout(() => {
+    const defPairs = results
+      .filter(r => {
+        const hasValidSubmission = r.word && !r.isInvalid && !r.noSubmission;
+        const best = lobby.playerBestWords.get(r.visibleId);
+        const hasOptimal = best && best.word && typeof best.score === 'number' && best.score > 0;
+        return hasValidSubmission || hasOptimal;
+      })
+      .map(r => {
+        const best = lobby.playerBestWords.get(r.visibleId);
+        const hasOptimal = best && best.word && typeof best.score === 'number' && best.score > 0;
+        return {
+          visibleId: r.visibleId,
+          submitted: (!r.isInvalid && !r.noSubmission && r.word) ? r.word : null,
+          optimal: hasOptimal ? best.word : null,
+        };
+      });
 
-  if (defPairs.length > 0) {
-    console.log(`Generating word definitions for ${defPairs.length} players`);
-    generateWordDefinitions(defPairs).then((definitions) => {
-      if (definitions) {
-        lobby.currentWordDefinitions = definitions;
-        const currentRound = lobby.roundHistory.find(r => r.roundNumber === lobby.roundNumber);
-        if (currentRound) {
-          currentRound.wordDefinitions = definitions;
+    if (defPairs.length > 0) {
+      console.log(`Generating word definitions for ${defPairs.length} players:`, defPairs.map(p => `${p.visibleId}: ${p.submitted}/${p.optimal}`).join(', '));
+      generateWordDefinitions(defPairs).then((definitions) => {
+        if (definitions) {
+          lobby.currentWordDefinitions = definitions;
+          const currentRound = lobby.roundHistory.find(r => r.roundNumber === lobby.roundNumber);
+          if (currentRound) {
+            currentRound.wordDefinitions = definitions;
+          }
+          broadcastToLobby(lobby, 'game:wordDefinitions', { definitions });
+          console.log(`Word definitions broadcast for lobby ${lobby.code}`);
+        } else {
+          console.log(`Word definitions generation failed for lobby ${lobby.code}`);
         }
-        broadcastToLobby(lobby, 'game:wordDefinitions', { definitions });
-        console.log(`Word definitions broadcast for lobby ${lobby.code}`);
-      } else {
-        console.log(`Word definitions generation failed for lobby ${lobby.code}`);
-      }
-    });
-  }
+      });
+    }
+  }, 3000);
 }
 
 // ============================================================================
