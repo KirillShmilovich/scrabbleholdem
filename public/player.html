@@ -1279,6 +1279,7 @@
     .result-item {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       padding: var(--space-sm) var(--space-md);
       background: rgba(0, 0, 0, 0.2);
       border: 1px solid rgba(212, 175, 55, 0.2);
@@ -1376,21 +1377,92 @@
     }
 
     .result-score {
-      text-align: right;
+      text-align: center;
       flex-shrink: 0;
-      margin-left: var(--space-sm);
+      margin-right: var(--space-sm);
+      min-width: 44px;
     }
 
     .result-word-score {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 1rem;
+      font-size: 0.9rem;
       font-weight: 700;
       color: var(--cream);
     }
 
     .result-points-earned {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--gold);
+    }
+
+    .result-expand-toggle {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--wood-light);
+      opacity: 0.4;
+      transition: opacity 0.2s, transform 0.2s;
+      font-size: 0.7rem;
+      border-radius: 50%;
+      margin-left: auto;
+    }
+    .result-expand-toggle:hover {
+      opacity: 0.9;
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .result-expand-toggle.expanded {
+      opacity: 0.9;
+      transform: rotate(180deg);
+    }
+    .result-expand-toggle.no-def {
+      visibility: hidden;
+    }
+
+    .result-definition {
+      width: 100%;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      padding: 0 var(--space-xs);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      color: var(--wood-light);
+    }
+    .result-definition.expanded {
+      max-height: 200px;
+      padding: var(--space-xs) var(--space-xs) 0;
+      margin-top: 4px;
+      border-top: 1px solid rgba(212, 175, 55, 0.1);
+    }
+    .result-definition strong {
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .def-word-label {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--gold-light);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.72rem;
+    }
+    .def-sentence {
+      margin-top: 4px;
+      font-style: italic;
+      color: var(--cream);
+      opacity: 0.9;
+    }
+    .def-loading {
+      color: var(--wood-light);
+      opacity: 0.5;
+      font-style: italic;
+    }
+    .def-loading::after {
+      content: '';
+      animation: funFactDots 1.5s infinite;
     }
 
     /* Standings - Compact */
@@ -2443,6 +2515,7 @@
     let bestWordWorker = null;
     let bestWordState = { roundNumber: null, status: 'idle' };
     let currentRoundResults = null;
+    let currentWordDefinitions = null;
     let currentGameOverData = null;
 
     // Client-side dictionary for instant word validation
@@ -3536,6 +3609,21 @@
       return `<div class="rh-optimal">Optimal: ${percentText} — <span class="rh-optimal-word">${r.bestWord}</span> (${r.bestScore} pts)</div>`;
     }
 
+    function buildDefinitionHtml(def, r) {
+      if (!def) return '<span class="def-loading">Loading</span>';
+      const parts = [];
+      if (def.submittedDef) {
+        parts.push(`<span class="def-word-label">${r.word}</span>: ${def.submittedDef}`);
+      }
+      if (def.optimalDef && r.bestWord && r.bestWord.toUpperCase() !== (r.word || '').toUpperCase()) {
+        parts.push(`<span class="def-word-label">${r.bestWord}</span>: ${def.optimalDef}`);
+      }
+      if (def.sentence) {
+        parts.push(`<div class="def-sentence">${renderMarkdown(def.sentence)}</div>`);
+      }
+      return parts.join('<br>');
+    }
+
     function renderRoundResults() {
       if (!currentRoundResults) return;
 
@@ -3546,18 +3634,27 @@
         const wordDisplay = r.noSubmission ? '(no submission)' : (r.isInvalid ? `${r.word} (invalid)` : r.word);
         const optimalHtml = formatOptimalResult(r);
 
+        const hasValidSubmission = r.word && !r.isInvalid && !r.noSubmission;
+        const hasOptimal = r.bestWord && typeof r.bestScore === 'number' && r.bestScore > 0;
+        const showToggle = hasValidSubmission || hasOptimal;
+        const def = currentWordDefinitions?.find(d => d.visibleId === r.visibleId);
+        const defContent = showToggle ? buildDefinitionHtml(def, r) : '';
+        const toggleClass = showToggle ? '' : ' no-def';
+
         return `
-          <div class="result-item ${placeClass}">
+          <div class="result-item ${placeClass}" data-visible-id="${r.visibleId}">
             <div class="result-place">${placeText}</div>
+            <div class="result-score">
+              <div class="result-word-score">${r.score} pts</div>
+              <div class="result-points-earned">${pointsText}</div>
+            </div>
             <div class="result-info">
               <div class="result-name">${r.name}${r.visibleId === session?.visibleId ? ' (you)' : ''}</div>
               <div class="result-word-prominent">${wordDisplay}</div>
               ${optimalHtml}
             </div>
-            <div class="result-score">
-              <div class="result-word-score">${r.score} pts</div>
-              <div class="result-points-earned">${pointsText}</div>
-            </div>
+            <div class="result-expand-toggle${toggleClass}" onclick="this.classList.toggle('expanded'); this.closest('.result-item').querySelector('.result-definition').classList.toggle('expanded')">&#9662;</div>
+            <div class="result-definition">${defContent}</div>
           </div>
         `;
       }).join('');
@@ -3610,6 +3707,9 @@
     }
 
     function showResults(data) {
+      // Reset word definitions (will arrive async)
+      currentWordDefinitions = null;
+
       // Reset fun fact section to loading state
       elements.funFactText.innerHTML = '<span class="fun-fact-loading">Generating</span>';
       elements.funFactSection.style.display = 'flex';
@@ -3943,6 +4043,11 @@
               // No fun fact available
               elements.funFactSection.style.display = 'none';
             }
+            // Apply word definitions if available from rejoin data
+            if (data.roundResults.wordDefinitions) {
+              currentWordDefinitions = data.roundResults.wordDefinitions;
+              renderRoundResults();
+            }
             console.log('Rejoined game at round results');
           } else {
             // Jump directly into the game
@@ -4179,6 +4284,22 @@
         }
       });
 
+      // Word definitions (arrives async after round results)
+      socket.on('game:wordDefinitions', (data) => {
+        if (!data.definitions || !currentRoundResults) return;
+        currentWordDefinitions = data.definitions;
+        // Update definition panels in-place (preserve expanded/collapsed state)
+        data.definitions.forEach(def => {
+          const item = document.querySelector(`.result-item[data-visible-id="${def.visibleId}"]`);
+          if (!item) return;
+          const panel = item.querySelector('.result-definition');
+          if (!panel) return;
+          const r = currentRoundResults.results.find(r => r.visibleId === def.visibleId);
+          if (!r) return;
+          panel.innerHTML = buildDefinitionHtml(def, r);
+        });
+      });
+
       // Final results (after all rounds)
       socket.on('game:finalResults', (data) => {
         showGameOver(data);
@@ -4193,6 +4314,7 @@
         lastClickedPlayerDie = null;
         currentSubmission = null;
         currentRoundResults = null;
+        currentWordDefinitions = null;
         currentGameOverData = null;
         bestWordState = { roundNumber: null, status: 'idle' };
         autoTimerEnabled = true;

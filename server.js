@@ -493,6 +493,7 @@ function createLobby(hostSocketId, hostName) {
     deleteTimeout: null, // Timeout for deleting empty lobby
     currentFunFact: null, // Current round's fun fact (for rejoining players)
     currentFunFactImage: null, // Current round's fun fact image URL (for rejoining players)
+    currentWordDefinitions: null, // Current round's AI word definitions
   };
   
   // Add host as first player
@@ -641,6 +642,7 @@ function startNewRound(lobby) {
   lobby.revealed = false;
   lobby.currentFunFact = null;
   lobby.currentFunFactImage = null;
+  lobby.currentWordDefinitions = null;
   lobby.timerRemaining = lobby.settings.timerDuration;
   lobby.timerHalved = false;
 
@@ -948,6 +950,62 @@ Words: PAPER, WASP, NEST
   return content;
 }
 
+// Generate brief definitions + humorous sentence for players' submitted & optimal words
+async function generateWordDefinitions(defPairs) {
+  if (!defPairs || defPairs.length === 0) return null;
+
+  const inputForModel = defPairs.map(p => ({
+    submitted: p.submitted || null,
+    optimal: p.optimal || null,
+  }));
+
+  const systemPrompt = `You generate brief, witty word definitions for a Scrabble game results screen.
+
+For each entry in the JSON array below, provide:
+1. "submitted_def": A brief definition of the submitted word (~10 words max). null if submitted is null.
+2. "optimal_def": A brief definition of the optimal word (~10 words max). null if optimal is null or same as submitted.
+3. "sentence": A short humorous sentence naturally using both words (or just the one word if only one exists). Bold each word with **WORD** (uppercase).
+
+Return ONLY a JSON array in the same order as the input. Each element: { "submitted_def": "...", "optimal_def": "...", "sentence": "..." }
+No markdown code fences, no explanation, just the JSON array.`;
+
+  const result = await callGemini([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: JSON.stringify(inputForModel) }
+  ], {
+    model: 'gemini-2.5-flash-lite',
+    timeout: 30000,
+  });
+
+  if (result.error) {
+    console.error('Word definitions generation error:', result.error);
+    return null;
+  }
+
+  try {
+    const cleaned = result.content
+      .replace(/^\s*```json?\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+    const parsed = JSON.parse(cleaned);
+
+    if (!Array.isArray(parsed) || parsed.length !== defPairs.length) {
+      console.error('Word definitions: unexpected array length', parsed.length, 'vs', defPairs.length);
+      return null;
+    }
+
+    return defPairs.map((pair, i) => ({
+      visibleId: pair.visibleId,
+      submittedDef: parsed[i].submitted_def || null,
+      optimalDef: parsed[i].optimal_def || null,
+      sentence: parsed[i].sentence || null,
+    }));
+  } catch (err) {
+    console.error('Word definitions JSON parse error:', err.message, 'Raw:', result.content?.substring(0, 200));
+    return null;
+  }
+}
+
 // Reveal results for a round
 function revealResults(lobby) {
   if (lobby.revealed) return;
@@ -1095,6 +1153,36 @@ function revealResults(lobby) {
   } else {
     console.log(`No valid words for fun fact in round ${lobby.roundNumber}`);
     broadcastToLobby(lobby, 'game:funFact', { funFact: null, failed: true });
+  }
+
+  // Generate and broadcast word definitions asynchronously
+  const defPairs = resultsWithBest
+    .filter(r => {
+      const hasValidSubmission = r.word && !r.isInvalid && !r.noSubmission;
+      const hasOptimal = r.bestWord && typeof r.bestScore === 'number' && r.bestScore > 0;
+      return hasValidSubmission || hasOptimal;
+    })
+    .map(r => ({
+      visibleId: r.visibleId,
+      submitted: (!r.isInvalid && !r.noSubmission && r.word) ? r.word : null,
+      optimal: (r.bestWord && typeof r.bestScore === 'number' && r.bestScore > 0) ? r.bestWord : null,
+    }));
+
+  if (defPairs.length > 0) {
+    console.log(`Generating word definitions for ${defPairs.length} players`);
+    generateWordDefinitions(defPairs).then((definitions) => {
+      if (definitions) {
+        lobby.currentWordDefinitions = definitions;
+        const currentRound = lobby.roundHistory.find(r => r.roundNumber === lobby.roundNumber);
+        if (currentRound) {
+          currentRound.wordDefinitions = definitions;
+        }
+        broadcastToLobby(lobby, 'game:wordDefinitions', { definitions });
+        console.log(`Word definitions broadcast for lobby ${lobby.code}`);
+      } else {
+        console.log(`Word definitions generation failed for lobby ${lobby.code}`);
+      }
+    });
   }
 }
 
@@ -1930,6 +2018,7 @@ io.on('connection', (socket) => {
           isLastRound,
           funFact: lobby.currentFunFact,
           funFactImage: lobby.currentFunFactImage,
+          wordDefinitions: lobby.currentWordDefinitions,
         };
       }
 
