@@ -647,6 +647,7 @@ function startNewRound(lobby) {
   // Roll new dice for all players
   lobby.players.forEach((player, visibleId) => {
     player.dice = rollPlayerDice(lobby);
+    player.hasRerolled = false;
   });
 
   // Start the timer
@@ -751,7 +752,7 @@ function getPlayerState(lobby, visibleId) {
     totalRounds: lobby.settings.totalRounds,
     communityDice: lobby.communityDice,
     modifier: lobby.modifier,
-    player: player,
+    player: player ? { ...player, hasRerolled: player.hasRerolled || false } : player,
     players: players,
     timerRemaining: lobby.timerRemaining,
     revealed: lobby.revealed,
@@ -2219,6 +2220,62 @@ io.on('connection', (socket) => {
         avgOptimal,
       });
     }
+  });
+
+  // Player re-rolls one private die (once per round, human players only)
+  socket.on('player:reroll', (data) => {
+    const lobby = lobbies.get(socket.lobbyCode);
+    if (!lobby) return;
+
+    const visibleId = socket.visibleId;
+    if (!visibleId || !lobby.players.has(visibleId)) return;
+
+    const player = lobby.players.get(visibleId);
+
+    if (player.isBot) {
+      socket.emit('player:rerollError', { message: 'Bots cannot re-roll.' });
+      return;
+    }
+
+    if (lobby.revealed) {
+      socket.emit('player:rerollError', { message: 'Round already ended!' });
+      return;
+    }
+
+    if (lobby.playerSubmissions.has(visibleId)) {
+      socket.emit('player:rerollError', { message: 'Already submitted — cannot re-roll.' });
+      return;
+    }
+
+    if (player.hasRerolled) {
+      socket.emit('player:rerollError', { message: 'Already used re-roll this round.' });
+      return;
+    }
+
+    const dieIndex = Number(data?.dieIndex);
+    if (![0, 1, 2].includes(dieIndex)) {
+      socket.emit('player:rerollError', { message: 'Invalid die index.' });
+      return;
+    }
+
+    const oldLetter = player.dice[dieIndex].letter;
+    let newDie = drawLetter(lobby);
+    let retries = 0;
+    while (newDie.letter === oldLetter && retries < 10) {
+      newDie = drawLetter(lobby);
+      retries++;
+    }
+
+    player.dice[dieIndex] = newDie;
+    player.hasRerolled = true;
+
+    console.log(`${player.name} re-rolled die ${dieIndex}: ${oldLetter} → ${newDie.letter}`);
+
+    socket.emit('player:rerollResult', {
+      dieIndex,
+      newDie: { letter: newDie.letter, points: newDie.points },
+      hasRerolled: true,
+    });
   });
 
   // View final results (host only, after last round)
