@@ -950,35 +950,33 @@ Words: PAPER, WASP, NEST
   return content;
 }
 
-// Generate brief definitions + humorous sentence for players' submitted & optimal words
-async function generateWordDefinitions(defPairs) {
-  if (!defPairs || defPairs.length === 0) return null;
+// Generate brief definitions + humorous sentence for a single player's submitted & optimal words
+async function generateSinglePlayerDefinition(pair) {
+  const submitted = pair.submitted || null;
+  const optimal = pair.optimal || null;
 
-  const inputForModel = defPairs.map(p => ({
-    submitted: p.submitted || null,
-    optimal: p.optimal || null,
-  }));
+  const systemPrompt = `You generate a brief, witty word definition for a Scrabble game results screen.
 
-  const systemPrompt = `You generate brief, witty word definitions for a Scrabble game results screen.
-
-For each entry in the JSON array below, provide:
+Given the word(s) below, provide:
 1. "submitted_def": A brief definition of the submitted word (~10 words max). null if submitted is null.
 2. "optimal_def": A brief definition of the optimal word (~10 words max). null if optimal is null or same as submitted.
 3. "sentence": A short humorous sentence naturally using both words (or just the one word if only one exists). Bold each word with **WORD** (uppercase).
 
-Return ONLY a JSON array in the same order as the input. Each element: { "submitted_def": "...", "optimal_def": "...", "sentence": "..." }
-No markdown code fences, no explanation, just the JSON array.`;
+Return ONLY a JSON object: { "submitted_def": "...", "optimal_def": "...", "sentence": "..." }
+No markdown code fences, no explanation, just the JSON object.`;
+
+  const userContent = JSON.stringify({ submitted, optimal });
 
   const result = await callGemini([
     { role: 'system', content: systemPrompt },
-    { role: 'user', content: JSON.stringify(inputForModel) }
+    { role: 'user', content: userContent }
   ], {
     model: 'gemini-2.5-flash-lite',
     timeout: 30000,
   });
 
   if (result.error) {
-    console.error('Word definitions generation error:', result.error);
+    console.error(`Word definition error for ${pair.visibleId}:`, result.error);
     return null;
   }
 
@@ -989,21 +987,27 @@ No markdown code fences, no explanation, just the JSON array.`;
       .trim();
     const parsed = JSON.parse(cleaned);
 
-    if (!Array.isArray(parsed) || parsed.length !== defPairs.length) {
-      console.error('Word definitions: unexpected array length', parsed.length, 'vs', defPairs.length);
-      return null;
-    }
-
-    return defPairs.map((pair, i) => ({
+    return {
       visibleId: pair.visibleId,
-      submittedDef: parsed[i].submitted_def || null,
-      optimalDef: parsed[i].optimal_def || null,
-      sentence: parsed[i].sentence || null,
-    }));
+      submittedDef: parsed.submitted_def || null,
+      optimalDef: parsed.optimal_def || null,
+      sentence: parsed.sentence || null,
+    };
   } catch (err) {
-    console.error('Word definitions JSON parse error:', err.message, 'Raw:', result.content?.substring(0, 200));
+    console.error(`Word definition JSON parse error for ${pair.visibleId}:`, err.message, 'Raw:', result.content?.substring(0, 200));
     return null;
   }
+}
+
+// Generate definitions for all players in parallel (one prompt per player)
+async function generateWordDefinitions(defPairs) {
+  if (!defPairs || defPairs.length === 0) return null;
+
+  const results = await Promise.all(defPairs.map(pair => generateSinglePlayerDefinition(pair)));
+
+  // Filter out failed results, return null only if all failed
+  const definitions = results.filter(r => r !== null);
+  return definitions.length > 0 ? definitions : null;
 }
 
 // Reveal results for a round
@@ -2282,10 +2286,16 @@ io.on('connection', (socket) => {
     const word = typeof data?.word === 'string' ? data.word.toUpperCase() : '';
     const score = typeof data?.score === 'number' ? data.score : 0;
 
+    // Only upgrade best word, never downgrade (supports pre/post-reroll max)
+    const existing = lobby.playerBestWords.get(visibleId);
     if (!word || score <= 0) {
-      lobby.playerBestWords.set(visibleId, { word: null, score: 0 });
-    } else {
+      if (!existing) {
+        lobby.playerBestWords.set(visibleId, { word: null, score: 0 });
+      }
+    } else if (!existing || score > existing.score) {
       lobby.playerBestWords.set(visibleId, { word, score });
+    } else {
+      return; // Existing best is already better, skip broadcast
     }
 
     if (lobby.revealed) {

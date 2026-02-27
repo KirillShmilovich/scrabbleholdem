@@ -241,16 +241,27 @@ function computeBestWord(payload) {
 
 self.onmessage = async (event) => {
   const payload = event.data || {};
-  if (payload.type !== 'computeBest') return;
+  if (payload.type !== 'computeBest' && payload.type !== 'recomputeBest') return;
 
   try {
     await ensureDictionary();
     const result = computeBestWord(payload);
+
+    // For recompute (post-reroll), take the max of previous and new result
+    let bestWord = result.bestWord;
+    let bestScore = result.bestScore;
+    if (payload.type === 'recomputeBest' && payload.previousBestScore) {
+      if (payload.previousBestScore > bestScore) {
+        bestWord = payload.previousBestWord;
+        bestScore = payload.previousBestScore;
+      }
+    }
+
     self.postMessage({
       type: 'bestWordResult',
       roundNumber: payload.roundNumber,
-      bestWord: result.bestWord,
-      bestScore: result.bestScore,
+      bestWord,
+      bestScore,
     });
   } catch (err) {
     self.postMessage({

@@ -2516,6 +2516,7 @@
     let lastClickedPlayerDie = null; // Track last player die clicked for re-roll prompt
     let bestWordWorker = null;
     let bestWordState = { roundNumber: null, status: 'idle' };
+    let currentBestWord = { word: null, score: 0 }; // Track best word across initial + reroll
     let currentRoundResults = null;
     let currentWordDefinitions = null;
     let currentGameOverData = null;
@@ -2557,6 +2558,7 @@
           if (!currentState || data.roundNumber !== currentState.roundNumber) return;
 
           bestWordState = { roundNumber: data.roundNumber, status: 'done' };
+          currentBestWord = { word: data.bestWord, score: data.bestScore };
 
           if (socket && socket.connected) {
             socket.emit('player:bestWord', {
@@ -2578,23 +2580,32 @@
       };
     }
 
-    function startBestWordComputation(state) {
+    function startBestWordComputation(state, isReroll) {
       if (!bestWordWorker || !state || state.revealed) return;
 
       const roundNumber = state.roundNumber;
-      if (bestWordState.roundNumber === roundNumber && bestWordState.status === 'computing') return;
+      // Block duplicate initial computation, but always allow reroll recompute
+      if (!isReroll && bestWordState.roundNumber === roundNumber && bestWordState.status === 'computing') return;
 
       if (!state.communityDice || !state.player?.dice || !state.modifier) return;
 
       bestWordState = { roundNumber, status: 'computing' };
 
-      bestWordWorker.postMessage({
-        type: 'computeBest',
+      const msg = {
+        type: isReroll ? 'recomputeBest' : 'computeBest',
         roundNumber,
         communityDice: state.communityDice,
         playerDice: state.player.dice,
         modifier: state.modifier,
-      });
+      };
+
+      // For reroll, pass previous best so the worker can take the max
+      if (isReroll && currentBestWord.score > 0) {
+        msg.previousBestWord = currentBestWord.word;
+        msg.previousBestScore = currentBestWord.score;
+      }
+
+      bestWordWorker.postMessage(msg);
     }
 
     initBestWordWorker();
@@ -3078,6 +3089,7 @@
       selectedDice = [];
       hasSubmitted = false;
       lastClickedPlayerDie = null;
+      currentBestWord = { word: null, score: 0 };
       currentSubmission = null;
       elements.submissionStatus.classList.add('hidden');
 
@@ -4231,6 +4243,9 @@
           dieEl.classList.add('rerolling');
           dieEl.addEventListener('animationend', () => dieEl.classList.remove('rerolling'), { once: true });
         }
+
+        // Recompute best word with post-reroll dice (worker takes max of previous and new)
+        startBestWordComputation(currentState, true);
       });
 
       // Re-roll error
@@ -4319,6 +4334,7 @@
         currentWordDefinitions = null;
         currentGameOverData = null;
         bestWordState = { roundNumber: null, status: 'idle' };
+        currentBestWord = { word: null, score: 0 };
         autoTimerEnabled = true;
         
         // Re-fetch state
