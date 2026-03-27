@@ -2293,11 +2293,7 @@
         </div>
         <div class="timer-setting-group">
           <div class="timer-presets" id="timerPresets">
-            <button class="timer-preset" data-seconds="75">1:15</button>
-            <button class="timer-preset" data-seconds="180">3:00</button>
-            <button class="timer-preset" data-seconds="300">5:00</button>
-            <button class="timer-preset" data-seconds="480">8:00</button>
-            <button class="timer-preset" data-seconds="600">10:00</button>
+            <!-- Preset buttons generated dynamically -->
           </div>
           <div class="timer-hint" id="timerHint">Recommended: 1:15</div>
         </div>
@@ -2909,6 +2905,7 @@
       currentRecommendedTimer = getRecommendedTimerSeconds(currentPlayerCount);
 
       if (state.isHost) {
+        generatePresets(currentPlayerCount);
         if (autoTimerEnabled && settingsTimer !== currentRecommendedTimer) {
           setTimer(currentRecommendedTimer);
         } else {
@@ -2927,14 +2924,44 @@
     let currentRecommendedTimer = 75;
     let currentPlayerCount = 0;
 
-    const TIMER_PRESETS = [75, 180, 300, 480, 600];
+    function roundTo15(val) {
+      return Math.round(val / 15) * 15;
+    }
 
     function getRecommendedTimerSeconds(playerCount) {
-      if (playerCount <= 2) return 75;
-      if (playerCount === 3) return 180;
-      if (playerCount === 4) return 300;
-      if (playerCount === 5) return 480;
-      return 600;
+      if (playerCount <= 1) return 75;
+      const raw = 20 * Math.pow(playerCount, 1.9);
+      return Math.max(75, Math.min(1800, roundTo15(raw)));
+    }
+
+    function getMaxTimer(playerCount) {
+      const recommended = getRecommendedTimerSeconds(playerCount);
+      return Math.min(3600, roundTo15(recommended * 2));
+    }
+
+    function getStepSize(currentSeconds) {
+      if (currentSeconds < 300) return 15;
+      if (currentSeconds <= 600) return 30;
+      return 60;
+    }
+
+    function generatePresets(playerCount) {
+      if (!elements.timerPresets) return;
+      const rec = getRecommendedTimerSeconds(playerCount);
+      const max = getMaxTimer(playerCount);
+      const quick = Math.max(30, roundTo15(rec * 0.7));
+      const extended = Math.min(max, roundTo15(rec * 1.4));
+
+      const presets = [];
+      presets.push({ seconds: quick, label: formatTime(quick) });
+      if (rec !== quick) presets.push({ seconds: rec, label: formatTime(rec) });
+      if (extended !== rec && extended !== quick) presets.push({ seconds: extended, label: formatTime(extended) });
+
+      elements.timerPresets.innerHTML = presets.map(p =>
+        `<button class="timer-preset" data-seconds="${p.seconds}">${p.label}</button>`
+      ).join('');
+
+      updateTimerPresetState(settingsTimer);
     }
 
     function updateTimerPresetState(currentSeconds) {
@@ -2954,7 +2981,8 @@
     }
 
     function setTimer(seconds, { emit = true } = {}) {
-      settingsTimer = Math.max(30, Math.min(600, seconds));
+      const max = getMaxTimer(currentPlayerCount);
+      settingsTimer = Math.max(30, Math.min(max, seconds));
       elements.timerValue.textContent = formatTime(settingsTimer);
       updateTimerPresetState(settingsTimer);
       if (emit) {
@@ -2976,22 +3004,22 @@
     
     document.getElementById('timerDown').addEventListener('click', () => {
       autoTimerEnabled = false;
-      setTimer(settingsTimer - 15);
+      setTimer(settingsTimer - getStepSize(settingsTimer));
     });
-    
+
     document.getElementById('timerUp').addEventListener('click', () => {
       autoTimerEnabled = false;
-      setTimer(settingsTimer + 15);
+      setTimer(settingsTimer + getStepSize(settingsTimer));
     });
 
     if (elements.timerPresets) {
-      elements.timerPresets.querySelectorAll('.timer-preset').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const seconds = Number(btn.dataset.seconds);
-          if (!Number.isFinite(seconds)) return;
-          autoTimerEnabled = false;
-          setTimer(seconds);
-        });
+      elements.timerPresets.addEventListener('click', (e) => {
+        const btn = e.target.closest('.timer-preset');
+        if (!btn) return;
+        const seconds = Number(btn.dataset.seconds);
+        if (!Number.isFinite(seconds)) return;
+        autoTimerEnabled = false;
+        setTimer(seconds);
       });
     }
 

@@ -432,6 +432,18 @@ const MODIFIERS = [
 
 // Placement points are based on total players in the lobby (N -> 1).
 
+// Timer scaling helpers (duplicated from client for server-side validation)
+function getRecommendedTimerSeconds(playerCount) {
+  if (playerCount <= 1) return 75;
+  const raw = 20 * Math.pow(playerCount, 1.9);
+  return Math.max(75, Math.min(1800, Math.round(raw / 15) * 15));
+}
+
+function getMaxTimer(playerCount) {
+  const recommended = getRecommendedTimerSeconds(playerCount);
+  return Math.min(3600, Math.round((recommended * 2) / 15) * 15);
+}
+
 // Bot player names (picked randomly, prefixed with 🤖)
 const BOT_NAMES = [
   'Bob', 'Luna', 'Max', 'Zoe', 'Finn', 'Ruby', 'Leo', 'Ivy',
@@ -2063,7 +2075,8 @@ io.on('connection', (socket) => {
       lobby.settings.totalRounds = Math.min(20, Math.max(3, data.totalRounds));
     }
     if (data.timerDuration) {
-      lobby.settings.timerDuration = Math.min(600, Math.max(30, data.timerDuration));
+      const maxTimer = getMaxTimer(lobby.players.size);
+      lobby.settings.timerDuration = Math.min(maxTimer, Math.max(30, data.timerDuration));
     }
 
     // Broadcast updated settings
