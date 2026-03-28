@@ -3634,7 +3634,7 @@
         return `<div class="result-optimal">Optimal: —</div>`;
       }
 
-      const percentText = typeof r.bestPercent === 'number' ? `${r.bestPercent}%` : '—';
+      const percentText = typeof r.bestPercent === 'number' ? (r.bestPercent === 100 ? '\u{1F4AF}' : `${r.bestPercent}%`) : '—';
       return `<div class="result-optimal">Optimal: ${percentText} — <span class="result-optimal-word">${r.bestWord}</span> (${r.bestScore} pts)</div>`;
     }
 
@@ -3647,7 +3647,7 @@
         return `<div class="rh-optimal">Optimal: —</div>`;
       }
 
-      const percentText = typeof r.bestPercent === 'number' ? `${r.bestPercent}%` : '—';
+      const percentText = typeof r.bestPercent === 'number' ? (r.bestPercent === 100 ? '\u{1F4AF}' : `${r.bestPercent}%`) : '—';
       return `<div class="rh-optimal">Optimal: ${percentText} — <span class="rh-optimal-word">${r.bestWord}</span> (${r.bestScore} pts)</div>`;
     }
 

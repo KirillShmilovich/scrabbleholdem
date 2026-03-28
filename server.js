@@ -420,14 +420,6 @@ const MODIFIERS = [
   { name: 'Vowel Rich', shortName: 'V>C', multiplier: 1, type: 'composition', compositionType: 'vowelRich', bonus: 6, color: '#6366f1', desc: '+6 if word has more vowels than consonants' },
   { name: 'Bonus +3', shortName: '+3', multiplier: 1, type: 'bonus', bonus: 3, color: '#22c55e', desc: '+3 points if you use this letter' },
   { name: 'Bonus +4', shortName: '+4', multiplier: 1, type: 'bonus', bonus: 4, color: '#16a34a', desc: '+4 points if you use this letter' },
-  { name: 'Rusty Tile', shortName: 'RUST', multiplier: 1, type: 'bonus', bonus: -2, color: '#64748b', desc: '-2 points if you use this letter' },
-  { name: 'Dull Edge', shortName: 'DUL', multiplier: 1, type: 'length', minLength: 4, bonus: -2, color: '#94a3b8', desc: '-2 if your word is 4+ letters' },
-  { name: 'Vowel Tax', shortName: 'VTX', multiplier: 1, type: 'composition', compositionType: 'vowelCount', minVowels: 3, bonus: -2, color: '#f87171', desc: '-2 if word has 3+ vowels' },
-  { name: 'Consonant Tax', shortName: 'CTX', multiplier: 1, type: 'composition', compositionType: 'consonantCount', minConsonants: 4, bonus: -2, color: '#fb7185', desc: '-2 if word has 4+ consonants' },
-  { name: 'Off-by-One', shortName: '1ST-', multiplier: 1, type: 'position', position: 'start', bonus: -3, color: '#ef4444', desc: '-3 if used as FIRST letter of your word' },
-  { name: 'Trailing Drag', shortName: 'END-', multiplier: 1, type: 'position', position: 'end', bonus: -3, color: '#f97316', desc: '-3 if used as LAST letter of your word' },
-  { name: 'Center Jinx', shortName: 'CTR-', multiplier: 1, type: 'position', position: 'centerAny', bonus: -3, color: '#f43f5e', desc: '-3 if used as the MIDDLE letter of your word' },
-  { name: 'Short Circuit', shortName: '4-', multiplier: 1, type: 'length', maxLength: 4, bonus: -4, color: '#dc2626', desc: '-4 if your word is 4 letters or fewer' },
 ];
 
 // Placement points are based on total players in the lobby (N -> 1).
@@ -493,6 +485,7 @@ function createLobby(hostSocketId, hostName) {
     roundNumber: 0,
     communityDice: [],
     modifier: null,
+    recentModifiers: [], // Track recent modifier indices to reduce repeats
     letterDeck: [],
     deckIndex: 0,
     playerSubmissions: new Map(), // visibleId -> submission
@@ -634,9 +627,19 @@ function rollCommunityDice(lobby) {
   return ensureCommunityBalance(dice);
 }
 
-// Generate a random modifier attached to a die
-function rollModifier() {
-  const index = Math.floor(Math.random() * MODIFIERS.length);
+// Generate a random modifier attached to a die, avoiding recent repeats
+function rollModifier(lobby) {
+  const recentCount = Math.min(Math.floor(MODIFIERS.length / 2), lobby ? lobby.recentModifiers.length : 0);
+  const recent = lobby ? lobby.recentModifiers.slice(-recentCount) : [];
+  const available = MODIFIERS.map((m, i) => i).filter(i => !recent.includes(i));
+  const index = available[Math.floor(Math.random() * available.length)];
+  if (lobby) {
+    lobby.recentModifiers.push(index);
+    // Keep history bounded
+    if (lobby.recentModifiers.length > MODIFIERS.length) {
+      lobby.recentModifiers.shift();
+    }
+  }
   const dieIndex = Math.floor(Math.random() * 5);
   return {
     ...MODIFIERS[index],
@@ -648,7 +651,7 @@ function rollModifier() {
 function startNewRound(lobby) {
   lobby.roundNumber++;
   lobby.communityDice = rollCommunityDice(lobby);
-  lobby.modifier = rollModifier();
+  lobby.modifier = rollModifier(lobby);
   lobby.playerSubmissions.clear();
   lobby.playerBestWords.clear();
   lobby.revealed = false;
