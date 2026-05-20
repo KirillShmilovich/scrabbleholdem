@@ -163,7 +163,7 @@ async function callGemini(messages, options = {}) {
   if (!apiKey) return { error: 'Gemini API key not configured' };
 
   const {
-    model = 'gemini-3.5-flash',
+    model = 'gemini-3-flash-preview',
     thinkingLevel = 'low', // For Gemini 3 models
     thinkingBudget = null, // For Gemini 2.5 models (null = use model default)
     timeout = 30000,
@@ -1267,8 +1267,8 @@ Bonus on ${modifierTileId}: ${modifierDesc}`;
   // Choose model and parameters based on bot difficulty
   const isEasy = botPlayer.botDifficulty === 'easy';
   const geminiOptions = isEasy
-    ? { model: 'gemini-3.5-flash', thinkingLevel: 'minimal', timeout: 60000 }
-    : { model: 'gemini-3.5-flash', thinkingLevel: 'low', timeout: 60000 };
+    ? { model: 'gemini-3-flash-preview', thinkingLevel: 'minimal', timeout: 60000 }
+    : { model: 'gemini-3-flash-preview', thinkingLevel: 'low', timeout: 60000 };
 
   console.log(`[AI] ${botPlayer.name} using ${isEasy ? 'easy' : 'hard'} mode (${geminiOptions.model})`);
 
